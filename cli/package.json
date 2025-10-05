@@ -1,0 +1,29 @@
+{
+
+  "name": "obsidian-publisher-cli",
+  "version": "0.0.1",
+  "description": "",
+  "bin": {
+    "obs-publish": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "type": "module",
+  "main": "src/index.ts",
+  "packageManager": "pnpm@10.15.0",
+  "dependencies": {
+    "commander": "^14.0.1",
+    "fs-extra": "^11.3.2",
+    "glob": "^11.0.3",
+    "markdown-it": "^14.1.0",
+    "vitepress": "^1.6.4"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
