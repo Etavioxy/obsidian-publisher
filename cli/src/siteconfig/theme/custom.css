@@ -1,0 +1,8 @@
+/* 改进的首页布局 */
+.VPHome .VPHero .actions {
+  justify-content: center;
+}
+
+.VPHome .VPFeatures {
+  padding-top: 48px;
+}

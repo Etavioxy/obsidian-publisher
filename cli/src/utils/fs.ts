@@ -1,8 +1,7 @@
 import * as fs from 'fs-extra';
-import { readFile, writeFile } from 'fs/promises';
+import * as fsp from 'fs/promises';
 
 export default {
     ...fs,
-    readFile,
-    writeFile
+    ...fsp
 };

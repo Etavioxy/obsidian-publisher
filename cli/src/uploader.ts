@@ -1,4 +1,4 @@
-import * as fs from 'fs-extra';
+import fs from './utils/fs';
 import * as path from 'path';
 import * as tar from 'tar';
 import archiver from 'archiver';
@@ -78,7 +78,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   const fileName = path.basename(archivePath);
   
   const formData = new FormData();
-  const blob = new Blob([fileBuffer], { 
+  const blob = new Blob([new Uint8Array(fileBuffer)], { 
     type: fileName.endsWith('.tar.gz') ? 'application/gzip' : 'application/zip' 
   });
   formData.append('site', blob, fileName);

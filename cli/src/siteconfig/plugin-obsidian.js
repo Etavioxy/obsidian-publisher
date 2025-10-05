@@ -1,8 +1,5 @@
-import type { Plugin } from 'vitepress';
-import MarkdownIt from 'markdown-it';
-
 // 双链插件
-function obsidianWikiLinks(md: MarkdownIt) {
+function obsidianWikiLinks(md) {
   md.inline.ruler.before('link', 'obsidian_wikilink', (state, silent) => {
     const start = state.pos;
     const marker = '[[';
@@ -37,7 +34,7 @@ function obsidianWikiLinks(md: MarkdownIt) {
 }
 
 // 标签插件
-function obsidianTags(md: MarkdownIt) {
+function obsidianTags(md) {
   md.inline.ruler.push('obsidian_tag', (state, silent) => {
     const start = state.pos;
     const marker = '#';
@@ -73,7 +70,7 @@ function obsidianTags(md: MarkdownIt) {
 }
 
 // 嵌入文件插件
-function obsidianEmbeds(md: MarkdownIt) {
+function obsidianEmbeds(md) {
   md.block.ruler.before('paragraph', 'obsidian_embed', (state, start, end, silent) => {
     const pos = state.bMarks[start] + state.tShift[start];
     const max = state.eMarks[start];
@@ -110,7 +107,7 @@ function obsidianEmbeds(md: MarkdownIt) {
 }
 
 // 辅助函数
-function slugify(text: string): string {
+function slugify(text) {
   return text
     .toLowerCase()
     .replace(/\s+/g, '-')
@@ -120,7 +117,7 @@ function slugify(text: string): string {
     .replace(/-+$/, '');
 }
 
-export function obsidianPlugin(): Plugin {
+export function obsidianPlugin() {
   return {
     name: 'obsidian-syntax',
     configureServer(server) {

@@ -1,8 +1,8 @@
 import fs from './utils/fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { build, UserConfig } from 'vitepress';
-import { makeConfig } from './siteconfig/config';
+import { build } from 'vitepress';
+import { fileURLToPath } from 'url';
 
 export interface BuildOptions {
   outputDir: string;
@@ -34,15 +34,24 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     // 3. 生成首页
     await generateIndexPage(docsDir, siteStructure);
     
-    // 4. 创建 VitePress 配置目录和主题
-    await createVitePressConfig(tempDir);
+    // 4. 复制 VitePress 配置文件夹
+    await copyVitePressConfig(tempDir);
     
-    // 5. 直接调用 VitePress 构建
-    await buildWithVitePress(tempDir, makeConfig(outputDir, srcDir, excludePatterns, siteStructure.nav, siteStructure.sidebar));
+    // 5. 生成动态配置
+    await generateConfigParams(tempDir, {
+      outputDir,
+      srcDir,
+      excludePatterns,
+      nav: siteStructure.nav,
+      sidebar: siteStructure.sidebar
+    });
     
+    // 6. 直接调用 VitePress 构建
+    await buildWithVitePress(tempDir);
   } finally {
     // 清理临时文件
-    //await fs.remove(tempDir);
+    //// if debugging is needed, comment out the next line
+    await fs.remove(tempDir);
   }
 }
 
@@ -105,14 +114,12 @@ function buildFileTree(files: string[]): FileItem[] {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       
       if (isLast) {
-        // 文件
         currentLevel.push({
           name: part.replace('.md', ''),
           path: file,
           type: 'file'
         });
       } else {
-        // 目录
         let dir = dirMap.get(currentPath);
         if (!dir) {
           dir = {
@@ -187,10 +194,6 @@ function generateIndexContent(structure: SiteStructure): string {
     }).join('\n');
   };
 
-  const renderNav = () => {
-    return structure.nav.map(item => `- [${item.text}](${item.link})`).join('\n');
-  }
-
   return `---
 layout: home
 
@@ -218,23 +221,46 @@ ${renderFileTree(structure.fileTree)}
 
 ## Quick Navigation
 
-${renderNav()}
+${structure.nav.map(item => `- [${item.text}](${item.link})`).join('\n')}
 `;
 }
 
-async function createVitePressConfig(
-  root: string, 
-  config: UserConfig,
-) {
-  console.log('root:', root);
-  await build(root);
+async function copyVitePressConfig(tempDir: string) {
+  // 在 ES Module 环境下模拟 __dirname
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
+  const configSourceDir = path.join(__dirname, 'siteconfig');
+  const configTargetDir = path.join(tempDir, '.vitepress');
+  
+  // 复制整个配置目录
+  await fs.copy(configSourceDir, configTargetDir);
+  
+  console.log(`📝 Copied VitePress config from ${configSourceDir} to ${configTargetDir}`);
 }
 
-async function buildWithVitePress(
-  root: string, 
-  config: UserConfig,
-) {
-  console.log('root:', root);
+interface ConfigParams {
+  outputDir: string;
+  srcDir: string;
+  excludePatterns: string[];
+  nav: Array<{ text: string; link: string }>;
+  sidebar: Record<string, any>;
+}
+
+async function generateConfigParams(tempDir: string, params: ConfigParams) {
+  const configParamsPath = path.join(tempDir, '.vitepress', 'config-params.js');
+  
+  // 生成参数文件
+  const configParamsContent = `// 动态生成的配置参数
+export const configParams = ${JSON.stringify(params, null, 2)};
+`;
+  
+  await fs.writeFile(configParamsPath, configParamsContent);
+  console.log('📝 Generated config parameters');
+}
+
+async function buildWithVitePress(root: string) {
+  console.log(`🔨 Building with VitePress from ${root}...`);
   await build(root);
 }
 

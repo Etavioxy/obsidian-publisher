@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { buildSite } from './builder';
 import { createArchive, uploadArchive } from './uploader';
-import * as fs from 'fs-extra';
+import fs from './utils/fs';
 import * as path from 'path';
 
 const program = new Command();
