@@ -15,8 +15,9 @@ use tower_http::{
     cors::CorsLayer,
     services::ServeDir,
 };
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 use uuid::Uuid;
+use tokio::io::AsyncWriteExt;
 
 type SiteStore = Arc<Mutex<HashMap<String, SiteInfo>>>;
 
@@ -25,7 +26,7 @@ struct SiteInfo {
     id: String,
     name: String,
     path: PathBuf,
-    created_at: chrono::DateTime<chrono::Utc>,
+    created_at: String,
 }
 
 #[derive(Serialize)]
@@ -42,24 +43,25 @@ struct ErrorResponse {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::init();
 
     let sites: SiteStore = Arc::new(Mutex::new(HashMap::new()));
 
-    // 确保上传目录存在
+    // 确保目录存在
     tokio::fs::create_dir_all("uploads").await.unwrap();
     tokio::fs::create_dir_all("sites").await.unwrap();
 
     let app = Router::new()
         .route("/api/upload", post(upload_site))
         .route("/api/sites", get(list_sites))
-        .route("/api/sites/{id}", get(get_site_info))
-        .nest_service("/sites/{id}", ServeDir::new("sites"))
+        .route("/api/sites/:id", get(get_site_info))
+        .nest_service("/sites/:id", ServeDir::new("sites"))
         .layer(CorsLayer::permissive())
         .with_state(sites);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     info!("🚀 Server running on http://localhost:3000");
+    info!("📝 Test upload with: curl -X POST -F \"site=@your-archive.tar.gz\" http://localhost:3000/api/upload");
     
     axum::serve(listener, app).await.unwrap();
 }
@@ -71,9 +73,11 @@ async fn upload_site(
     let site_id = Uuid::new_v4().to_string();
     let site_dir = PathBuf::from("sites").join(&site_id);
 
+    info!("📤 Processing upload for site: {}", site_id);
+
     // 创建站点目录
     tokio::fs::create_dir_all(&site_dir).await.map_err(|e| {
-        warn!("Failed to create site directory: {}", e);
+        error!("Failed to create site directory: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -82,21 +86,27 @@ async fn upload_site(
         )
     })?;
 
+    let mut processed_files = false;
+
     while let Some(field) = multipart.next_field().await.map_err(|e| {
-        warn!("Multipart error: {}", e);
+        error!("Multipart parsing error: {}", e);
         (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
-                error: "Invalid multipart data".to_string(),
+                error: format!("Invalid multipart data: {}", e),
             }),
         )
     })? {
-        let name = field.name().unwrap_or("unknown").to_string();
+        let field_name = field.name().unwrap_or("unknown").to_string();
+        info!("📄 Processing field: {}", field_name);
         
-        if name == "site" {
-            // 处理上传的站点文件
+        if field_name == "site" {
+            let file_name = field.file_name().unwrap_or("upload").to_string();
+            info!("📁 Processing file: {}", file_name);
+            
+            // 读取文件数据
             let data = field.bytes().await.map_err(|e| {
-                warn!("Failed to read field data: {}", e);
+                error!("Failed to read field data: {}", e);
                 (
                     StatusCode::BAD_REQUEST,
                     Json(ErrorResponse {
@@ -105,19 +115,56 @@ async fn upload_site(
                 )
             })?;
 
-            // 简化处理：假设上传的是单个 HTML 文件或目录内容
-            // 实际应该处理 zip/tar 解压
-            let index_path = site_dir.join("index.html");
-            tokio::fs::write(&index_path, &data).await.map_err(|e| {
-                warn!("Failed to write site files: {}", e);
+            info!("📊 Received {} bytes", data.len());
+
+            // 保存上传的文件
+            let upload_path = PathBuf::from("uploads").join(format!("{}.tar.gz", site_id));
+            let mut file = tokio::fs::File::create(&upload_path).await.map_err(|e| {
+                error!("Failed to create upload file: {}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ErrorResponse {
-                        error: "Failed to save site".to_string(),
+                        error: "Failed to save upload".to_string(),
                     }),
                 )
             })?;
+            
+            file.write_all(&data).await.map_err(|e| {
+                error!("Failed to write upload data: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: "Failed to write upload data".to_string(),
+                    }),
+                )
+            })?;
+
+            // 解压文件
+            extract_archive(&upload_path, &site_dir).await.map_err(|e| {
+                error!("Failed to extract archive: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: format!("Failed to extract archive: {}", e),
+                    }),
+                )
+            })?;
+
+            // 清理上传的压缩文件
+            let _ = tokio::fs::remove_file(&upload_path).await;
+            
+            processed_files = true;
+            info!("✅ Successfully processed upload for site: {}", site_id);
         }
+    }
+
+    if !processed_files {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "No site file found in upload".to_string(),
+            }),
+        ));
     }
 
     // 存储站点信息
@@ -125,18 +172,32 @@ async fn upload_site(
         id: site_id.clone(),
         name: format!("Site {}", &site_id[..8]),
         path: site_dir,
-        created_at: chrono::Utc::now(),
+        created_at: chrono::Utc::now().to_rfc3339(),
     };
 
     sites.lock().unwrap().insert(site_id.clone(), site_info);
 
-    info!("✅ Site {} uploaded successfully", site_id);
+    info!("✅ Site {} uploaded and extracted successfully", site_id);
 
     Ok(Json(UploadResponse {
         id: site_id.clone(),
         url: format!("http://localhost:3000/sites/{}", site_id),
         message: "Site uploaded successfully".to_string(),
     }))
+}
+
+async fn extract_archive(archive_path: &PathBuf, extract_to: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    use flate2::read::GzDecoder;
+    use std::fs::File;
+    use tar::Archive;
+
+    let file = File::open(archive_path)?;
+    let gz = GzDecoder::new(file);
+    let mut archive = Archive::new(gz);
+    
+    archive.unpack(extract_to)?;
+    
+    Ok(())
 }
 
 async fn list_sites(
