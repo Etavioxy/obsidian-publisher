@@ -1,0 +1,1 @@
+{"server":{"host":"localhost","port":8080,"jwt_secret":"your_jwt_secret_key"},"storage":{"path":"./data"},"auth":{"allow_plaintext_password":true}}

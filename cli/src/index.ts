@@ -89,9 +89,10 @@ program
   .action(async (vaultPath, options) => {
     const tempBuildDir = './temp-build';
     const tempArchive = './temp-site.tar.gz';
-    
+    let publishError: any = null;
+
     try {
-      // 1. 构建
+      // 0. 构建
       console.log('🏗️  Building site...');
       await buildSite(vaultPath, {
         outputDir: tempBuildDir,
@@ -116,14 +117,18 @@ program
       console.log(`🌐 Site URL: ${result.url}`);
       
     } catch (error) {
+      publishError = error;
       console.error('❌ Publish failed:', error);
-      process.exit(1);
     } finally {
       // 清理临时文件
+      console.log('Cleaning:', tempBuildDir, tempArchive);
       if (!options.keepTemp) {
         await fs.remove(tempBuildDir).catch(() => {});
         await fs.remove(tempArchive).catch(() => {});
       }
+    }
+    if (publishError) {
+      process.exit(1);
     }
   });
 
