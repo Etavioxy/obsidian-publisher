@@ -191,3 +191,27 @@ async fn extract_zip(archive_path: &std::path::Path, extract_to: &std::path::Pat
     }
     Ok(())
 }
+
+
+use crate::models::{User, UserResponse};
+
+// __yixuan_note__ debug
+pub async fn admin_all(
+    State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
+) -> Result<Json<(Vec<SiteResponse>, Vec<User>, Config)>, AppError> {
+    let sites = storage.sites.list_all()?;
+    let users = storage.users.list_all()?;
+
+    Ok(Json((
+    sites
+        .into_iter()
+        .map(|site| SiteResponse::from_site(site, config.server.url().as_ref()))
+        .collect(),
+    users
+//        .into_iter()
+//        .map(|user| user.into())
+//        .collect()
+        ,
+    (*config).clone()
+    )))
+}

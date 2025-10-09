@@ -43,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 公开路由（不需要认证）
     let public_routes = Router::new()
+        .route("/api/admin/all", get(site_handlers::admin_all))
         .route("/api/sites", get(site_handlers::list_all))
         .with_state((storage.clone(), config.clone()))
         .route("/auth/register", post(auth_handlers::register))
