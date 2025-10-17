@@ -74,9 +74,9 @@ pub async fn delete_user_account(
 
     let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
 
-    // 删除用户的所有站点
-    for site_id in &user.sites {
-        storage.sites.delete(*site_id)?;
+    // 用户有站点
+    if user.sites.len() > 0 {
+        return Err(AppError::UserDeletionBlocked);
     }
 
     // 删除用户
