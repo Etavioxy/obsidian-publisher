@@ -64,13 +64,15 @@ async fn main() -> anyhow::Result<()> {
         .route("/user/account", delete(user_handlers::delete_user_account))
         .with_state(storage.clone());
 
-    let app = Router::new()
-        .merge(protected_routes)
-        .route_layer(middleware::from_fn_with_state(
+    let auth_middleware_layer =
+        middleware::from_fn_with_state(
             token_service.clone(),
             auth_middleware,
-        ))
-        .with_state(auth_service.clone())
+        );
+
+    let app = Router::new()
+        .merge(protected_routes)
+        .route_layer(auth_middleware_layer)
         .merge(public_routes)
         .nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
         //.nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))

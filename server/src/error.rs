@@ -35,6 +35,9 @@ pub enum AppError {
     #[error("User already exists")]
     UserAlreadyExists,
     
+    #[error("User has active sites, cannot delete account")]
+    UserDeletionBlocked,
+    
     #[error("Invalid input: {0}")]
     InvalidInput(String),
     
@@ -50,6 +53,7 @@ impl IntoResponse for AppError {
             AppError::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
             AppError::SiteNotFound => (StatusCode::NOT_FOUND, "Site not found"),
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
+            AppError::UserDeletionBlocked => (StatusCode::BAD_REQUEST, "User has active sites, cannot delete account"),
             AppError::InvalidInput(_) => (StatusCode::BAD_REQUEST, "Invalid input"),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
         };
