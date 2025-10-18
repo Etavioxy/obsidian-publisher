@@ -21,10 +21,6 @@ impl SiteStorage {
         let value = serde_json::to_vec(&site)?;
         self.db.insert(key, value)?;
         
-        // 创建站点文件目录
-        let site_dir = self.files_path.join(site.id.to_string());
-        std::fs::create_dir_all(site_dir)?;
-        
         Ok(())
     }
 

@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod error;
+mod utils;
 mod handlers;
 mod models;
 mod storage;
@@ -84,11 +85,13 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server.port)).await?;
     info!("🚀 Server running on {}", config.server.url());
     info!("📚 API endpoints:");
+    info!("  GET    /api/admin/all    - Debugging");
+    info!("  GET    /api/sites        - 列出站点");
     info!("  POST   /auth/register    - 用户注册");
     info!("  POST   /auth/login       - 用户登录");
+    info!("  ------------------------------  ");
     info!("  GET    /auth/me          - 获取当前用户信息");
     info!("  POST   /api/sites        - 上传站点");
-    info!("  GET    /api/sites        - 列出用户站点");
     info!("  PUT    /api/sites/:id    - 更新站点信息");
     info!("  DELETE /api/sites/:id    - 删除站点");
     info!("  GET    /user/profile     - 获取用户详细信息");

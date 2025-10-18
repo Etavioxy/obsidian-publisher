@@ -17,6 +17,8 @@ export default defineConfig({
   
   ignoreDeadLinks: true,
   
+  base: '.',
+  
   srcDir: srcDir,
   srcExclude: excludePatterns,
   outDir: path.resolve(outputDir),

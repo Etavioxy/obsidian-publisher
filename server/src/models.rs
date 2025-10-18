@@ -44,9 +44,9 @@ pub struct Site {
 }
 
 impl Site {
-    pub fn new(owner_id: Uuid, name: String, description: String) -> Self {
+    pub fn new(id: Uuid, owner_id: Uuid, name: String, description: String) -> Self {
         Self {
-            id: Uuid::new_v4(),
+            id,
             owner_id,
             name,
             domain: None,
