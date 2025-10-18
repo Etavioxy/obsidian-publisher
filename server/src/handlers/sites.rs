@@ -9,6 +9,7 @@ use axum::{
     Json,
 };
 use crate::config::Config;
+use crate::utils::archive;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -19,13 +20,56 @@ pub async fn upload_site(
 ) -> Result<Json<SiteResponse>, AppError> {
     let user_id = user.id;
 
+    // 处理上传的文件
+    let mut site_id = None;
+    
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| AppError::Internal(e.to_string()))? 
+    {
+        let name = field.name().unwrap_or("unknown").to_string();
+        
+        match (name.as_ref(), site_id) {
+            ("uuid", _) => {
+                let id = field.text().await
+                    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+                site_id = Some(Uuid::parse_str(&id)
+                    .map_err(|e| AppError::InvalidInput(e.to_string()))?);
+            },
+            ("site", None) => {
+                return Err(AppError::InvalidInput("reading site archive without uuid ?????".to_string()));
+            },
+            ("site", Some(site_id)) => {
+                let site_dir = storage.sites.get_site_files_path(site_id);
+                // 创建站点文件目录
+                std::fs::create_dir_all(&site_dir)?;
+
+                let file_name = field.file_name().unwrap_or("upload").to_string();
+
+                let archive_path = site_dir.join(&file_name);
+                // 流式写入文件，避免将整个文件读入内存
+                archive::save_archive_field(field, &archive_path).await?;
+
+                // 解压并清理
+                archive::extract_archive(&archive_path, &site_dir).await?;
+                tokio::fs::remove_file(&archive_path).await?;
+            },
+            _ => ()
+        }
+    }
+
+    let site_id = match site_id {
+        Some(id) => id,
+        None => { return Err(AppError::InvalidInput("Missing site uuid".to_string())); },
+    };
+
     // 创建站点记录
     let site = Site::new(
+        site_id,
         user_id,
         "Uploaded Site".to_string(),
         "Site uploaded from CLI".to_string(),
     );
-    let site_id = site.id;
 
     storage.sites.create(site.clone())?;
 
@@ -33,28 +77,6 @@ pub async fn upload_site(
     if let Some(mut user) = storage.users.get(user_id)? {
         user.add_site(site_id);
         storage.users.update(user)?;
-    }
-
-    // 处理上传的文件
-    let site_dir = storage.sites.get_site_files_path(site_id);
-    
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| AppError::Internal(e.to_string()))? 
-    {
-        let name = field.name().unwrap_or("unknown").to_string();
-        
-        if name == "site" {
-            let file_name = field.file_name().unwrap_or("upload").to_string();
-            let data = field.bytes().await
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-
-            // 保存并解压文件
-            let archive_path = site_dir.join(&file_name);
-            tokio::fs::write(&archive_path, &data).await?;
-
-            extract_archive(&archive_path, &site_dir).await?;
-            tokio::fs::remove_file(&archive_path).await?;
-        }
     }
 
     let response = SiteResponse::from_site(site, config.server.url().as_ref());
@@ -135,59 +157,4 @@ pub async fn delete_site(
     Ok(Json(serde_json::json!({
         "message": "Site deleted successfully"
     })))
-}
-
-async fn extract_archive(archive_path: &std::path::Path, extract_to: &std::path::Path) -> Result<(), AppError> {
-    let file_name = archive_path.file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
-
-    if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
-        extract_tar_gz(archive_path, extract_to).await
-    } else if file_name.ends_with(".zip") {
-        extract_zip(archive_path, extract_to).await
-    } else {
-        Err(AppError::InvalidInput("Unsupported archive format".to_string()))
-    }
-}
-
-async fn extract_tar_gz(archive_path: &std::path::Path, extract_to: &std::path::Path) -> Result<(), AppError> {
-    use flate2::read::GzDecoder;
-    use std::fs::File;
-    use tar::Archive;
-
-    let file = File::open(archive_path)?;
-    let gz = GzDecoder::new(file);
-    let mut archive = Archive::new(gz);
-    
-    archive.unpack(extract_to)
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    Ok(())
-}
-
-async fn extract_zip(archive_path: &std::path::Path, extract_to: &std::path::Path) -> Result<(), AppError> {
-    use std::fs::File;
-    use zip::ZipArchive;
-
-    let file = File::open(archive_path)?;
-    let mut archive = ZipArchive::new(file)
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        let outpath = extract_to.join(file.name());
-
-        if file.name().ends_with('/') {
-            tokio::fs::create_dir_all(&outpath).await?;
-        } else {
-            if let Some(parent) = outpath.parent() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-            let mut outfile = std::fs::File::create(&outpath)?;
-            std::io::copy(&mut file, &mut outfile)
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-        }
-    }
-    Ok(())
 }

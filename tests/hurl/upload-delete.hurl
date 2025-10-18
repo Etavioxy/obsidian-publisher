@@ -13,10 +13,7 @@ Content-Type: application/json
 jwt_token: jsonpath "$.token"
 
 
-# ============================
-# 用户删除
-# ============================
-DELETE http://localhost:8080/user/account
+DELETE http://localhost:8080/api/sites/00000000-0000-0000-0000-000000000000
 Authorization: Bearer {{jwt_token}}
 
 
