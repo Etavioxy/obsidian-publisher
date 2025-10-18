@@ -61,13 +61,15 @@ program
   .command('upload')
   .description('Upload archive to server')
   .argument('<archive-path>', 'Path to archive file')
-  .option('-s, --server <url>', 'Server URL', 'http://localhost:3000')
+  .option('-s, --server <url>', 'Server URL', 'http://localhost:8080')
   .option('-t, --token <token>', 'Authentication token')
+  .option('--meta <path>', 'Path to site-meta.json')
   .action(async (archivePath, options) => {
     try {
       const result = await uploadArchive(archivePath, {
         serverUrl: options.server,
-        token: options.token
+        token: options.token,
+        metaPath: options.meta
       });
       console.log('✅ Archive uploaded successfully!');
       console.log(`🌐 Site URL: ${result.url}`);
@@ -82,7 +84,7 @@ program
   .command('publish')
   .description('Build, pack and upload site to server')
   .argument('<vault-path>', 'Path to Obsidian vault')
-  .option('-s, --server <url>', 'Server URL', 'http://localhost:3000')
+  .option('-s, --server <url>', 'Server URL', 'http://localhost:8080')
   .option('-t, --token <token>', 'Authentication token')
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
   .option('--keep-temp', 'Keep temporary files for debugging')
@@ -110,7 +112,8 @@ program
       console.log('📤 Uploading...');
       const result = await uploadArchive(tempArchive, {
         serverUrl: options.server,
-        token: options.token
+        token: options.token,
+        metaPath: path.join(tempBuildDir, 'site-meta.json')
       });
       
       console.log('✅ Site published successfully!');

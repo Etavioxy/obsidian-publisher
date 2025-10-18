@@ -21,6 +21,8 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
   
   const tempDir = path.join(process.cwd(), '.temp-vitepress');
   const docsDir = path.join(tempDir, srcDir);
+  const metaPath = path.join(outputDir, 'site-meta.json');
+  const id = crypto.randomUUID();
   
   await fs.ensureDir(docsDir);
   
@@ -39,15 +41,22 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     
     // 5. 生成动态配置
     await generateConfigParams(tempDir, {
+      base: `/sites/${id}/`,
       outputDir,
       srcDir,
       excludePatterns,
       nav: siteStructure.nav,
       sidebar: siteStructure.sidebar
-    });
+    } as ConfigParams);
     
     // 6. 直接调用 VitePress 构建
     await buildWithVitePress(tempDir);
+    
+    // 7. 生成 meta 信息
+    await generateSiteMeta(metaPath, {
+      version: 'v0',
+      siteId: id,
+    } as SiteMeta);
   } finally {
     // 清理临时文件
     //// if debugging is needed, comment out the next line
@@ -240,6 +249,7 @@ async function copyVitePressConfig(tempDir: string) {
 }
 
 interface ConfigParams {
+  base: string;
   outputDir: string;
   srcDir: string;
   excludePatterns: string[];
@@ -262,6 +272,16 @@ export const configParams = ${JSON.stringify(params, null, 2)};
 async function buildWithVitePress(root: string) {
   console.log(`🔨 Building with VitePress from ${root}...`);
   await build(root);
+}
+
+interface SiteMeta {
+  version: string;
+  siteId: string;
+}
+
+async function generateSiteMeta(metaPath: string, meta: SiteMeta) {
+  await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+  console.log(`📝 Generated site meta at ${metaPath}`);
 }
 
 function formatTitle(filename: string): string {

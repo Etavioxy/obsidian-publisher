@@ -83,4 +83,8 @@ impl SiteStorage {
     pub fn get_site_files_path(&self, site_id: Uuid) -> PathBuf {
         self.files_path.join(site_id.to_string())
     }
+
+    pub fn get_site_files_path_str(&self, site_id: &str) -> PathBuf {
+        self.files_path.join(site_id)
+    }
 }

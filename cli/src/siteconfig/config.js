@@ -4,6 +4,7 @@ import { configParams } from './config-params.js';
 import * as path from 'path';
 
 const {
+  base,
   outputDir,
   srcDir,
   excludePatterns,
@@ -17,7 +18,7 @@ export default defineConfig({
   
   ignoreDeadLinks: true,
   
-  base: '.',
+  base: base,
   
   srcDir: srcDir,
   srcExclude: excludePatterns,

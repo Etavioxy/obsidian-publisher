@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(protected_routes)
         .route_layer(auth_middleware_layer)
         .merge(public_routes)
-        .nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
+        .nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path_str("")))
         //.nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
         //.nest_service("/", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
         .layer(CorsLayer::permissive())
