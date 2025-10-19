@@ -1,10 +1,5 @@
-#![allow(unused_imports)]
+#![cfg_attr(debug_assertions, allow(dead_code))]
 pub mod auth;
 pub mod sites;
 pub mod users;
 pub mod admin;
-
-pub use auth::*;
-pub use sites::*;
-pub use users::*;
-pub use admin::*;

@@ -48,6 +48,7 @@ pub async fn auth_middleware(
 }
 
 // 辅助函数，从请求中提取用户信息
+#[allow(dead_code)]
 pub fn extract_auth_user(request: &Request) -> Result<&AuthUser, AppError> {
     request
         .extensions()

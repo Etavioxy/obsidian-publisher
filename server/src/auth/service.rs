@@ -73,10 +73,4 @@ impl AuthService {
             user: user_response,
         })
     }
-
-    pub async fn get_current_user(&self, user_id: &str) -> Result<UserResponse, AppError> {
-        let user_uuid = user_id.parse().map_err(|_| AppError::InvalidInput("Invalid user ID".to_string()))?;
-        let user = self.user_storage.get(user_uuid)?.ok_or(AppError::UserNotFound)?;
-        Ok(UserResponse::from(user))
-    }
 }

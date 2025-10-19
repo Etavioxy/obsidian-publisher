@@ -1,17 +1,15 @@
 use crate::{
-    auth::{AuthenticatedUser},
     error::AppError,
-    models::{Site, SiteResponse, UpdateSiteRequest},
+    models::{SiteResponse, User},
     storage::Storage,
+    config::Config,
 };
 use axum::{
-    extract::{Multipart, Path, State, Query},
+    extract::{State, Query},
     Json,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::config::Config;
-use crate::models::{User, UserResponse};
 
 pub async fn admin_all(
     State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,

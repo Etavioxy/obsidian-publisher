@@ -3,13 +3,13 @@ use crate::{
     error::AppError,
     models::{Site, SiteResponse, UpdateSiteRequest},
     storage::Storage,
+    config::Config,
+    utils::archive,
 };
 use axum::{
     extract::{Multipart, Path, State},
     Json,
 };
-use crate::config::Config;
-use crate::utils::archive;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -83,21 +83,6 @@ pub async fn upload_site(
     Ok(Json(response))
 }
 
-pub async fn list_sites(
-    State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Json<Vec<SiteResponse>>, AppError> {
-    let user_id = user.id;
-
-    let sites = storage.sites.list_by_owner(user_id)?;
-    let responses: Vec<SiteResponse> = sites
-        .into_iter()
-        .map(|site| SiteResponse::from_site(site, config.server.url().as_ref()))
-        .collect();
-
-    Ok(Json(responses))
-}
-
 pub async fn list_all(
     State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
 ) -> Result<Json<Vec<SiteResponse>>, AppError> {
@@ -133,7 +118,7 @@ pub async fn update_site(
 }
 
 pub async fn delete_site(
-    State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
+    State((storage, _config)): State<(Arc<Storage>, Arc<Config>)>,
     Path(site_id): Path<Uuid>,
     AuthenticatedUser(user): AuthenticatedUser,
 ) -> Result<Json<serde_json::Value>, AppError> {

@@ -55,14 +55,13 @@ async fn main() -> anyhow::Result<()> {
     let protected_routes = Router::new()
         .route("/auth/me", get(auth_handlers::me))
         .with_state(auth_service.clone())
-        //.route("/api/sites", get(site_handlers::list_sites))
         .route("/api/sites", post(site_handlers::upload_site))
         .route("/api/sites/{id}", put(site_handlers::update_site))
         .route("/api/sites/{id}", delete(site_handlers::delete_site))
+        .route("/user/stats", get(user_handlers::get_user_stats))
         .with_state((storage.clone(), config.clone()))
         .route("/user/profile", get(user_handlers::get_user_profile))
         .route("/user/profile", put(user_handlers::update_user_profile))
-        .route("/user/stats", get(user_handlers::get_user_stats))
         .route("/user/account", delete(user_handlers::delete_user_account))
         .with_state(storage.clone());
 

@@ -1,11 +1,12 @@
 use crate::{
-    auth::{AuthenticatedUser, extract_auth_user},
+    auth::AuthenticatedUser,
     error::AppError,
     models::{SiteResponse, UserResponse},
     storage::Storage,
+    config::Config,
 };
 use axum::{
-    extract::{Path, Request, State},
+    extract::State,
     Json,
 };
 use std::sync::Arc;
@@ -89,7 +90,7 @@ pub async fn delete_user_account(
 
 /// 获取用户统计信息
 pub async fn get_user_stats(
-    State(storage): State<Arc<Storage>>,
+    State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
     AuthenticatedUser(user): AuthenticatedUser,
 ) -> Result<Json<UserStatsResponse>, AppError> {
     let user_id = user.id;
@@ -97,64 +98,25 @@ pub async fn get_user_stats(
     let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
     let sites = storage.sites.list_by_owner(user_id)?;
 
+    let site_responses: Vec<SiteResponse> = sites
+        .into_iter()
+        .map(|site| SiteResponse::from_site(site, config.server.url().as_ref()))
+        .collect();
+
     let stats = UserStatsResponse {
         user_id: user.id,
         username: user.username,
-        total_sites: sites.len(),
+        total_sites: site_responses.len(),
         account_created: user.created_at,
-        sites_by_month: group_sites_by_month(sites),
+        sites: site_responses,
     };
 
     Ok(Json(stats))
 }
 
-/// 管理员功能：获取所有用户列表（需要管理员权限）
-pub async fn list_all_users(
-    State(storage): State<Arc<Storage>>,
-    request: Request,
-) -> Result<Json<Vec<UserResponse>>, AppError> {
-    let _auth_user = extract_auth_user(&request)?;
-    
-    // 这里可以添加管理员权限检查
-    // if !is_admin(&claims) {
-    //     return Err(AppError::AuthorizationFailed);
-    // }
-
-    let users = storage.users.list_all()?;
-    let responses: Vec<UserResponse> = users
-        .into_iter()
-        .map(UserResponse::from)
-        .collect();
-
-    Ok(Json(responses))
-}
-
-/// 管理员功能：获取指定用户信息
-pub async fn get_user_by_id(
-    State(storage): State<Arc<Storage>>,
-    Path(user_id): Path<Uuid>,
-    request: Request,
-) -> Result<Json<UserResponse>, AppError> {
-    let auth_user = extract_auth_user(&request)?;
-    
-    // 检查权限：只能查看自己的信息，除非是管理员
-    let requesting_user_id = auth_user.id;
-    
-    if requesting_user_id != user_id {
-        // 这里可以添加管理员权限检查
-        // if !is_admin(&claims) {
-        //     return Err(AppError::AuthorizationFailed);
-        // }
-    }
-
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
-    Ok(Json(UserResponse::from(user)))
-}
-
 // 辅助结构体
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use std::collections::HashMap;
 
 #[derive(Debug, Serialize)]
 pub struct UserProfileResponse {
@@ -177,23 +139,5 @@ pub struct UserStatsResponse {
     pub username: String,
     pub total_sites: usize,
     pub account_created: DateTime<Utc>,
-    pub sites_by_month: HashMap<String, usize>,
+    pub sites: Vec<SiteResponse>,
 }
-
-fn group_sites_by_month(sites: Vec<crate::models::Site>) -> HashMap<String, usize> {
-    let mut sites_by_month = HashMap::new();
-    
-    for site in sites {
-        let month_key = site.created_at.format("%Y-%m").to_string();
-        *sites_by_month.entry(month_key).or_insert(0) += 1;
-    }
-    
-    sites_by_month
-}
-
-// 未来可以实现的管理员权限检查
-// fn is_admin(claims: &crate::models::Claims) -> bool {
-//     // 检查用户是否有管理员权限
-//     // 可以从数据库查询用户角色，或从 JWT claims 中获取
-//     false
-// }
