@@ -20,15 +20,22 @@ program
   .option('-o, --output <path>', 'Output directory', './dist')
   .option('--src-dir <path>', 'VitePress source directory', '.')
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
+  .option('--only-temp <path>', 'Only prepare the temporary build directory and do not run final build', '')
   .action(async (vaultPath, options) => {
     try {
       await buildSite(vaultPath, {
         outputDir: options.output,
         srcDir: options.srcDir,
-        excludePatterns: options.exclude
+        excludePatterns: options.exclude,
+        onlyTemp: options.onlyTemp ? true : false,
+        optionTempDir: options.onlyTemp ? options.onlyTemp : undefined
       });
       console.log('✅ Site built successfully!');
-      console.log(`📁 Output: ${path.resolve(options.output)}`);
+      if (options.onlyTemp) {
+        console.log(`🟡 Temporary build directory prepared at ${path.resolve(options.onlyTemp)}. Final build skipped as requested.`);
+      } else {
+        console.log(`📁 Output: ${path.resolve(options.output)}`);
+      }
     } catch (error) {
       console.error('❌ Build failed:', error);
       process.exit(1);
@@ -72,7 +79,7 @@ program
         metaPath: options.meta
       });
       console.log('✅ Archive uploaded successfully!');
-      console.log(`🌐 Site URL: ${result.url}`);
+      console.log(`🌐 Site URL: http://${result.url}`);
     } catch (error) {
       console.error('❌ Upload failed:', error);
       process.exit(1);
@@ -89,6 +96,7 @@ program
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
   .option('--keep-temp', 'Keep temporary files for debugging')
   .action(async (vaultPath, options) => {
+    const tempArchiveFormat = 'tar';
     const tempBuildDir = './temp-build';
     const tempArchive = './temp-site.tar.gz';
     let publishError: any = null;
@@ -105,7 +113,7 @@ program
       console.log('📦 Creating archive...');
       await createArchive(tempBuildDir, {
         outputPath: tempArchive,
-        format: 'tar'
+        format: tempArchiveFormat
       });
       
       // 3. 上传
@@ -117,15 +125,15 @@ program
       });
       
       console.log('✅ Site published successfully!');
-      console.log(`🌐 Site URL: ${result.url}`);
+      console.log(`🌐 Site URL: http://${result.url}`);
       
     } catch (error) {
       publishError = error;
       console.error('❌ Publish failed:', error);
     } finally {
       // 清理临时文件
-      console.log('Cleaning:', tempBuildDir, tempArchive);
       if (!options.keepTemp) {
+        console.log('Cleaning:', tempBuildDir, tempArchive);
         await fs.remove(tempBuildDir).catch(() => {});
         await fs.remove(tempArchive).catch(() => {});
       }

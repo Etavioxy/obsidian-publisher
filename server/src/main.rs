@@ -8,6 +8,7 @@ mod storage;
 
 use auth::{auth_middleware, AuthService, TokenService};
 use axum::{
+    extract::DefaultBodyLimit,
     middleware,
     routing::{delete, get, post, put},
     Router,
@@ -16,7 +17,7 @@ use config::Config;
 use handlers::{auth as auth_handlers, sites as site_handlers, users as user_handlers, admin as admin_handlers};
 use std::sync::Arc;
 use storage::Storage;
-use tower_http::{cors::CorsLayer, services::ServeDir, trace::TraceLayer};
+use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, services::ServeDir, trace::TraceLayer};
 use tracing::info;
 
 #[tokio::main]
@@ -79,7 +80,11 @@ async fn main() -> anyhow::Result<()> {
         //.nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
         //.nest_service("/", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
         .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .layer(DefaultBodyLimit::disable())
+        .layer(RequestBodyLimitLayer::new(
+            250 * 1024 * 1024, /* 250mb */
+        ));
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server.port)).await?;
     info!("🚀 Server running on {}", config.server.url());

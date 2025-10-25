@@ -8,6 +8,8 @@ export interface BuildOptions {
   outputDir: string;
   srcDir?: string;
   excludePatterns?: string[];
+  onlyTemp?: boolean;
+  optionTempDir?: string;
 }
 
 export async function buildSite(vaultPath: string, options: BuildOptions) {
@@ -16,16 +18,29 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
   const {
     outputDir,
     srcDir = '.',
-    excludePatterns = ['.obsidian/**', '.trash/**']
-  } = options;
-  
-  const tempDir = path.join(process.cwd(), '.temp-vitepress');
+    excludePatterns = ['.obsidian/**', '.trash/**'],
+    onlyTemp = false,
+    optionTempDir = '.temp-vitepress'
+  } = options as BuildOptions & { tempDir?: string };
+
+  const tempDir = path.join(process.cwd(), optionTempDir);
   const docsDir = path.join(tempDir, srcDir);
   const metaPath = path.join(outputDir, 'site-meta.json');
-  const id = crypto.randomUUID();
+  const siteId = crypto.randomUUID();
+  const siteBase = onlyTemp ? '/' : `/sites/${siteId}/`;
   
+  // If onlyTemp is requested and tempDir already exists, skip regeneration
+  if (onlyTemp && await fs.pathExists(tempDir)) {
+    console.log(`🟡 Temp directory already exists at ${tempDir}. Skipping generation as requested.`);
+    return;
+  }
+
   await fs.ensureDir(docsDir);
-  
+  // 检查docsDir是否为空目录
+  if ((await fs.readdir(docsDir)).length > 0) {
+    throw new Error(`The source directory (${docsDir}) is not empty. Please ensure it is empty before building the site.`);
+  }
+
   try {
     // 1. 复制文档文件
     await copyVaultFiles(vaultPath, docsDir, excludePatterns);
@@ -41,13 +56,16 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     
     // 5. 生成动态配置
     await generateConfigParams(tempDir, {
-      base: `/sites/${id}/`,
+      base: siteBase,
       outputDir,
       srcDir,
       excludePatterns,
       nav: siteStructure.nav,
+      wikiLinkMap: siteStructure.wikiLinkMap,
       sidebar: siteStructure.sidebar
     } as ConfigParams);
+
+    if (options.onlyTemp) return; // If onlyTemp is true, skip
     
     // 6. 直接调用 VitePress 构建
     await buildWithVitePress(tempDir);
@@ -55,12 +73,15 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     // 7. 生成 meta 信息
     await generateSiteMeta(metaPath, {
       version: 'v0',
-      siteId: id,
+      siteId: siteId,
     } as SiteMeta);
-  } finally {
-    // 清理临时文件
-    //// if debugging is needed, comment out the next line
+
+    // 8. 清理临时文件
     await fs.remove(tempDir);
+  } catch (error) {
+    // 失败，清理临时文件
+    await fs.remove(tempDir);
+    throw error;
   }
 }
 
@@ -89,6 +110,7 @@ interface FileItem {
 
 interface SiteStructure {
   nav: Array<{ text: string; link: string }>;
+  wikiLinkMap: Record<string, string>;
   sidebar: Record<string, Array<{ text: string; link: string; items?: Array<{ text: string; link: string }> }>>;
   fileTree: FileItem[];
 }
@@ -101,11 +123,15 @@ async function analyzeSiteStructure(docsDir: string): Promise<SiteStructure> {
   
   // 构建导航
   const nav = buildNavigation(markdownFiles);
-  
+
+  // 构建wiki索引
+  const wikiLinkMap = buildWikiLinkMap(markdownFiles);
+  console.log('🔍 Generated wiki index:', markdownFiles, wikiLinkMap);
+
   // 构建侧边栏
   const sidebar = buildSidebar(markdownFiles);
   
-  return { nav, sidebar, fileTree };
+  return { nav, wikiLinkMap, sidebar, fileTree };
 }
 
 function buildFileTree(files: string[]): FileItem[] {
@@ -113,7 +139,8 @@ function buildFileTree(files: string[]): FileItem[] {
   const dirMap = new Map<string, FileItem>();
   
   for (const file of files) {
-    const parts = file.split('/');
+    // support both POSIX and Windows paths (split on / or \)
+    const parts = file.split(/[/\\]+/);
     let currentPath = '';
     let currentLevel = tree;
     
@@ -149,11 +176,22 @@ function buildFileTree(files: string[]): FileItem[] {
 }
 
 function buildNavigation(files: string[]): Array<{ text: string; link: string }> {
-  const topLevelFiles = files.filter(f => !f.includes('/') && f !== 'index.md');
+  const topLevelFiles = files.filter(f => !/[/\\]/.test(f) && f !== 'index.md');
   return topLevelFiles.slice(0, 8).map(file => ({
     text: formatTitle(path.basename(file, '.md')),
-    link: `/${file.replace('.md', '')}`
+    link: `/${file.replace(/\\/g, '/').replace('.md', '')}`
   }));
+}
+
+function buildWikiLinkMap(files: string[]): Record<string, string> {
+  const wikiLinkMap: Record<string, string> = {};
+  
+  for (const file of files) {
+    const title = path.basename(file, '.md');
+    wikiLinkMap[title] = `/${file.replace(/\\/g, '/').replace('.md', '')}`;
+  }
+      
+  return wikiLinkMap;
 }
 
 function buildSidebar(files: string[]): Record<string, Array<{ text: string; link: string; items?: Array<{ text: string; link: string }> }>> {
@@ -161,19 +199,19 @@ function buildSidebar(files: string[]): Record<string, Array<{ text: string; lin
   
   const directories = [...new Set(
     files
-      .filter(f => f.includes('/'))
-      .map(f => f.split('/')[0])
+      .filter(f => /[/\\]/.test(f))
+      .map(f => f.split(/[/\\]+/)[0])
   )];
   
   for (const dir of directories) {
-    const dirFiles = files.filter(f => f.startsWith(dir + '/'));
-    
+    const dirFiles = files.filter(f => f.startsWith(dir + '/') || f.startsWith(dir + '\\'));
+
     sidebar[`/${dir}/`] = [{
       text: formatTitle(dir),
       link: `/${dir}/`,
       items: dirFiles.map(f => ({
         text: formatTitle(path.basename(f, '.md')),
-        link: `/${f.replace('.md', '')}`
+        link: `/${f.replace(/\\/g, '/').replace('.md', '')}`
       }))
     }];
   }
@@ -198,11 +236,12 @@ function generateIndexContent(structure: SiteStructure): string {
       if (item.type === 'directory') {
         return `${indent}- 📁 **${item.name}**\n${renderFileTree(item.children || [], level + 1)}`;
       } else {
-        return `${indent}- 📄 [${item.name}](/${item.path.replace('.md', '')})`;
+        return `${indent}- 📄 [${item.name}](/${item.path.replace('.md', '').replace(/ /g, '%20')})`;
       }
     }).join('\n');
   };
 
+  // see https://vitepress.dev/zh/reference/default-theme-home-page#hero-section
   return `---
 layout: home
 
@@ -254,6 +293,7 @@ interface ConfigParams {
   srcDir: string;
   excludePatterns: string[];
   nav: Array<{ text: string; link: string }>;
+  wikiLinkMap: Record<string, string>;
   sidebar: Record<string, any>;
 }
 
@@ -286,6 +326,6 @@ async function generateSiteMeta(metaPath: string, meta: SiteMeta) {
 
 function formatTitle(filename: string): string {
   return filename
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase());
+    .replace(/[-_]/g, ' ');
+    //.replace(/\b\w/g, l => l.toUpperCase());
 }

@@ -10,7 +10,7 @@ axum-extra = { version = "0.10.3", features = ["typed-header"] }
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = { version = "0.7.16", features = ["io"] }
 tower = "0.5.2"
-tower-http = { version = "0.6.6", features = ["fs", "cors", "trace"] }
+tower-http = { version = "0.6.6", features = ["fs", "cors", "trace", "limit"] }
 
 # 序列化
 serde = { version = "1.0.228", features = ["derive"] }

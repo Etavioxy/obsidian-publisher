@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitepress';
-import { obsidianPlugin } from './plugin-obsidian.js';
+import { obsidianWikiLinks, obsidianTags, obsidianEmbeds } from './plugin-obsidian.js';
 import { configParams } from './config-params.js';
 import * as path from 'path';
 
@@ -9,6 +9,7 @@ const {
   srcDir,
   excludePatterns,
   nav,
+  wikiLinkMap,
   sidebar
 } = configParams;
 
@@ -24,16 +25,27 @@ export default defineConfig({
   srcExclude: excludePatterns,
   outDir: path.resolve(outputDir),
   
-  vite: {
-    plugins: [obsidianPlugin()]
-  },
-  
   markdown: {
     lineNumbers: true,
     anchor: {
       permalink: true,
       permalinkBefore: true,
-      permalinkSymbol: '#'
+      permalinkSymbol: '#',
+    },
+    html: true,       // 启用 HTML 标签
+    breaks: true,     // 将 \n 转换为 <br>
+    linkify: true,    // 自动将 URL 转换为链接
+    // 配置 markdown-it 实例
+    config: (md) => {
+      // 应用 Obsidian 插件
+
+      md.use(obsidianWikiLinks, { base, linkmap: wikiLinkMap });
+      md.use(obsidianTags);
+      //md.use(obsidianEmbeds, { base });
+      
+      // 其他 markdown-it 插件配置
+      // md.use(require('markdown-it-footnote'));
+      // md.use(require('markdown-it-task-lists'));
     }
   },
   

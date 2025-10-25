@@ -17,7 +17,7 @@ POST http://localhost:8080/api/sites
 Authorization: Bearer {{jwt_token}}
 [Multipart]
 uuid: 00000000-0000-0000-0000-000000000000
-site: file,site-0000000000000.tar.gz; application/x-tar
+site: file,site-0000000000000.tar.gz; application/gzip
 
 #Content-Type: multipart/form-data; boundary=boundary123
 #--boundary123
@@ -26,3 +26,4 @@ site: file,site-0000000000000.tar.gz; application/x-tar
 #--boundary123--
 
 
+#curl http://localhost:8080/sites/00000000-0000-0000-0000-000000000000/

@@ -1,67 +1,64 @@
 // 双链插件
-function obsidianWikiLinks(md) {
-  md.inline.ruler.before('link', 'obsidian_wikilink', (state, silent) => {
-    const start = state.pos;
-    const marker = '[[';
-    const markerEnd = ']]';
+
+import { link } from "fs";
+
+// see https://github.com/binyamin/markdown-it-wikilinks/blob/main/index.js 
+export function obsidianWikiLinks(md, opts = {}) {
+  // 设置默认 base 路径
+  let base = opts.base || '/';
+  let linkmap = opts.linkmap || {};
+
+  // 添加 Wiki 链接解析规则
+  md.linkify.add("[[", {
+    // 增强版正则，支持中文字符、表情符号和复杂路径
+    validate: /^([\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji}\uFE0F\w\s\/\-#:.,()\u4e00-\u9fff]+)(\.(md|markdown))?\s*(\|([^\]]+))?\]\]/u,
     
-    // 检查是否以 [[ 开始
-    if (start + marker.length >= state.posMax) return false;
-    if (state.src.slice(start, start + marker.length) !== marker) return false;
-    
-    // 查找结束标记
-    const end = state.src.indexOf(markerEnd, start + marker.length);
-    if (end === -1) return false;
-    
-    if (!silent) {
-      const content = state.src.slice(start + marker.length, end);
-      const [link, display] = content.split('|').map(s => s.trim());
-      const displayText = display || link;
+    // 链接标准化处理
+    normalize: (match) => {
+      const raw = match.raw.slice(2, -2);
+      // [page#section|display] or [page|display] or [page]
+      let [target, display] = raw.split('|').map(s => s.trim());
+      let [pathPart, anchorPart] = target.split('#');
+      pathPart = pathPart.replace(/\.(md|markdown)$/i, '');
       
-      // 创建链接 token
-      const token = state.push('link_open', 'a', 1);
-      token.attrSet('href', `${slugify(link)}.html`);
+      if (!pathPart || linkmap[pathPart] === undefined) {
+        console.error(`Error: Wiki link target "${pathPart}" not found in linkmap`); // TODO: file info
+      }
       
-      const textToken = state.push('text', '', 0);
-      textToken.content = displayText;
+      let resolvedPath = base + (linkmap[pathPart] || '').slice(1);
       
-      state.push('link_close', 'a', -1);
+      if (anchorPart) {
+        resolvedPath += `#${anchorPart}`;
+      }
+      
+      match.text = display || pathPart;
+      match.url = resolvedPath;
     }
-    
-    state.pos = end + markerEnd.length;
-    return true;
   });
 }
 
 // 标签插件
-function obsidianTags(md) {
+export function obsidianTags(md) {
   md.inline.ruler.push('obsidian_tag', (state, silent) => {
     const start = state.pos;
-    const marker = '#';
     
-    if (state.src.charCodeAt(start) !== 0x23) return false; // #
-    if (start > 0 && /\S/.test(state.src[start - 1])) return false; // 前面不能是非空白字符
+    if (state.src.charCodeAt(start) !== 0x23) return false;
+    if (start > 0 && /\S/.test(state.src[start - 1])) return false;
     
     let pos = start + 1;
     let tagEnd = pos;
     
     // 匹配标签字符
-    while (tagEnd < state.posMax) {
-      const char = state.src[tagEnd];
-      if (/[a-zA-Z0-9_\-/]/.test(char)) {
-        tagEnd++;
-      } else {
-        break;
-      }
+    while (tagEnd < state.posMax && /[a-zA-Z0-9_\-/\u4e00-\u9fff]/.test(state.src[tagEnd])) {
+      tagEnd++;
     }
     
-    if (tagEnd === pos) return false; // 没有找到有效标签
+    if (tagEnd === pos) return false;
     
     if (!silent) {
       const tagContent = state.src.slice(pos, tagEnd);
-      
       const token = state.push('html_inline', '', 0);
-      token.content = `<span class="tag" data-tag="${tagContent}">#${tagContent}</span>`;
+      token.content = `<span class="tag" style="box-shadow: 0 1px 2px rgba(100, 100, 100, 0.3); border-radius: 3px; padding: 2px 4px;" data-tag="${tagContent}">#${tagContent}</span>`;
     }
     
     state.pos = tagEnd;
@@ -70,77 +67,49 @@ function obsidianTags(md) {
 }
 
 // 嵌入文件插件
-function obsidianEmbeds(md) {
-  md.block.ruler.before('paragraph', 'obsidian_embed', (state, start, end, silent) => {
-    const pos = state.bMarks[start] + state.tShift[start];
-    const max = state.eMarks[start];
+// error：不能通过这样修改连接到资源
+export function obsidianEmbeds(md, opts = {}) {
+  let base = opts.base || '/';
+  
+  md.inline.ruler.push('obsidian_embeds', (state, silent) => {
+    const start = state.pos;
+    const max = state.posMax;
     
-    if (pos + 4 > max) return false;
-    if (state.src.slice(pos, pos + 3) !== '![[') return false;
+    // 检查是否以 ![[开头
+    if (start + 3 >= max || 
+        state.src.slice(start, start + 3) !== '![[') {
+      return false;
+    }
     
-    const lineText = state.src.slice(pos, max);
-    const match = lineText.match(/^!\[\[([^\]]+)\]\]/);
+    // 查找结束标记 ]]
+    const closePos = state.src.indexOf(']]', start + 3);
+    if (closePos === -1) return false;
     
-    if (!match) return false;
+    // 提取嵌入路径
+    const content = state.src.slice(start + 3, closePos).trim();
+    if (!content) return false;
     
     if (!silent) {
-      const [, embedPath] = match;
-      const isImage = /\.(png|jpe?g|gif|svg|webp)$/i.test(embedPath);
+      const isImage = /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(content);
+      const resolvedPath = base + content;
       
       let token;
       if (isImage) {
-        token = state.push('image', 'img', 0);
-        token.attrSet('src', embedPath);
-        token.attrSet('alt', '');
+        //token = state.push('html_inline', '', 0);
+        //token.content = `<img class="obsidian-embed-image" src="${resolvedPath}" alt="Embedded Image: ${content}" data-embed="${content}" style="max-width: 100%; height: auto;" />`;
+       
+        token = state.push('image', 'img', 0)
+        const attrs = [['src', resolvedPath], ['alt', `Embedded Image: ${content}`], ['class', 'obsidian-embed-image']]
+        token.attrs = attrs
+        token.children = []
+        token.content = content
       } else {
-        // 处理其他文件类型的嵌入
-        token = state.push('html_block', '', 0);
-        token.content = `<div class="embed-file" data-src="${embedPath}">
-          <a href="${embedPath}" target="_blank">${embedPath}</a>
-        </div>`;
+        token = state.push('html_inline', '', 0);
+        token.content = `<div data-src="${resolvedPath}">Embedded: ${content} not an image.</div>`;
       }
     }
     
-    state.line = start + 1;
+    state.pos = closePos + 2;
     return true;
   });
-}
-
-// 辅助函数
-function slugify(text) {
-  return text
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '');
-}
-
-export function obsidianPlugin() {
-  return {
-    name: 'obsidian-syntax',
-    configureServer(server) {
-      // 开发服务器配置
-    },
-    config(config) {
-      // 添加 markdown 插件配置
-      if (!config.markdown) {
-        config.markdown = {};
-      }
-      
-      const originalConfig = config.markdown.config;
-      config.markdown.config = (md) => {
-        // 应用原有配置
-        if (originalConfig) {
-          originalConfig(md);
-        }
-        
-        // 应用 Obsidian 插件
-        md.use(obsidianWikiLinks);
-        md.use(obsidianTags);
-        md.use(obsidianEmbeds);
-      };
-    }
-  };
 }

@@ -13,6 +13,8 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 
+use tracing::debug;
+
 pub async fn upload_site(
     State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
     AuthenticatedUser(user): AuthenticatedUser,
@@ -44,11 +46,14 @@ pub async fn upload_site(
                 // 创建站点文件目录
                 std::fs::create_dir_all(&site_dir)?;
 
-                let file_name = field.file_name().unwrap_or("upload").to_string();
+                let file_name = field.file_name().ok_or_else(
+                    || AppError::InvalidInput("Uploaded file must have a filename".to_string())
+                )?.to_string();
 
                 let archive_path = site_dir.join(&file_name);
                 // 流式写入文件，避免将整个文件读入内存
                 archive::save_archive_field(field, &archive_path).await?;
+                debug!("Saved archive to {:?}", archive_path);
 
                 // 解压并清理
                 archive::extract_archive(&archive_path, &site_dir).await?;

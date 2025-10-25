@@ -55,7 +55,8 @@ async function createZipArchive(sourceDir: string, outputPath: string): Promise<
     
     output.on('close', () => resolve());
     archive.on('error', reject);
-    
+    output.on('error', reject); 
+
     archive.pipe(output);
     archive.directory(sourceDir, false);
     archive.finalize();
@@ -106,9 +107,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   const fileName = path.basename(archivePath);
   
   const formData = new FormData();
-  const blob = new Blob([new Uint8Array(fileBuffer)], { 
-    type: fileName.endsWith('.tar.gz') ? 'application/gzip' : 'application/zip' 
-  });
+  const blob = new Blob([new Uint8Array(fileBuffer)]);
   formData.append('uuid', siteUuid);
   formData.append('site', blob, fileName);
   
@@ -121,7 +120,9 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   try {
     const response = await fetch(`${serverUrl}/api/sites`, {
       method: 'POST',
-      headers,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
       body: formData
     });
     

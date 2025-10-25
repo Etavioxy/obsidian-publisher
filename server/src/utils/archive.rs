@@ -1,23 +1,37 @@
 use crate::error::AppError;
-use std::path::Path;
-use axum::extract::multipart::Field;
-use futures_util::{StreamExt, TryStreamExt};
-use tokio::io::AsyncWriteExt;
+use std::{io, pin::pin, path::Path};
+use tokio::{fs::File, io::BufWriter};
+use tokio_util::io::StreamReader;
+use axum::{
+    body::Bytes,
+    BoxError,
+};
+use futures_util::{Stream, TryStreamExt};
 
-use tracing::info;
+use tracing::debug;
 
-pub async fn save_archive_field(field: Field<'_>, archive_path: &Path) -> Result<(), AppError> {
-    info!("Saving archive field to {:?}", archive_path);
-    let mut outfile = tokio::fs::File::create(&archive_path).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+// Save a `Stream` to a file, see https://github.com/tokio-rs/axum/blob/main/examples/stream-to-file/src/main.rs
+pub async fn save_archive_field<S, E>(stream: S, archive_path: &Path) -> Result<(), AppError>
+where
+    S: Stream<Item = Result<Bytes, E>>,
+    E: Into<BoxError>,
+{
+    debug!("Saving archive field to {:?}", archive_path);
+    async {
+        // Convert the stream into an `AsyncRead`.
+        let body_with_io_error = stream.map_err(io::Error::other);
+        let mut body_reader = pin!(StreamReader::new(body_with_io_error));
 
-    let mut stream = field.into_stream();
-    while let Some(chunk_res) = stream.next().await {
-        let chunk = chunk_res.map_err(|e| AppError::Internal(e.to_string()))?;
-        outfile.write_all(chunk.as_ref()).await.map_err(|e| AppError::Internal(e.to_string()))?;
+        // Create the file. `File` implements `AsyncWrite`.
+        let mut file = BufWriter::new(File::create(archive_path).await?);
+
+        // Copy the body into the file.
+        tokio::io::copy(&mut body_reader, &mut file).await?;
+
+        Ok::<_, io::Error>(())
     }
-    outfile.flush().await.map_err(|e| AppError::Internal(e.to_string()))?;
-    Ok(())
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))
 }
 
 pub async fn extract_archive(archive_path: &Path, extract_to: &Path) -> Result<(), AppError> {
@@ -35,6 +49,7 @@ pub async fn extract_archive(archive_path: &Path, extract_to: &Path) -> Result<(
 }
 
 pub async fn extract_tar_gz(archive_path: &Path, extract_to: &Path) -> Result<(), AppError> {
+    debug!("Extracting tar.gz archive {:?} to {:?}", archive_path, extract_to);
     use flate2::read::GzDecoder;
     use std::fs::File;
     use tar::Archive;
@@ -49,6 +64,7 @@ pub async fn extract_tar_gz(archive_path: &Path, extract_to: &Path) -> Result<()
 }
 
 async fn extract_zip(archive_path: &Path, extract_to: &Path) -> Result<(), AppError> {
+    debug!("Extracting zip archive {:?} to {:?}", archive_path, extract_to);
     use std::fs::File;
     use zip::ZipArchive;
 

@@ -117,7 +117,7 @@ impl SiteResponse {
             domain: site.domain,
             description: site.description,
             created_at: site.created_at,
-            url: format!("{}/sites/{}", base_url, site.id),
+            url: format!("{}/sites/{}/", base_url, site.id),
         }
     }
 }
