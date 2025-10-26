@@ -179,7 +179,7 @@ function buildNavigation(files: string[]): Array<{ text: string; link: string }>
   const topLevelFiles = files.filter(f => !/[/\\]/.test(f) && f !== 'index.md');
   return topLevelFiles.slice(0, 8).map(file => ({
     text: formatTitle(path.basename(file, '.md')),
-    link: `/${file.replace(/\\/g, '/').replace('.md', '')}`
+    link: `/${file.replace(/\\/g, '/').replace(/ /g, '%20').replace('.md', '')}`
   }));
 }
 

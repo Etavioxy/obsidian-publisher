@@ -1,7 +1,5 @@
 // 双链插件
-
-import { link } from "fs";
-
+// 属于 inline ruler linkify 规则
 // see https://github.com/binyamin/markdown-it-wikilinks/blob/main/index.js 
 export function obsidianWikiLinks(md, opts = {}) {
   // 设置默认 base 路径
@@ -25,7 +23,7 @@ export function obsidianWikiLinks(md, opts = {}) {
         console.error(`Error: Wiki link target "${pathPart}" not found in linkmap`); // TODO: file info
       }
       
-      let resolvedPath = base + (linkmap[pathPart] || '').slice(1);
+      let resolvedPath = linkmap[pathPart] || '';
       
       if (anchorPart) {
         resolvedPath += `#${anchorPart}`;
@@ -38,6 +36,7 @@ export function obsidianWikiLinks(md, opts = {}) {
 }
 
 // 标签插件
+// 属于 inline 规则
 export function obsidianTags(md) {
   md.inline.ruler.push('obsidian_tag', (state, silent) => {
     const start = state.pos;
@@ -67,7 +66,7 @@ export function obsidianTags(md) {
 }
 
 // 嵌入文件插件
-// error：不能通过这样修改连接到资源
+// 属于 inline 规则
 export function obsidianEmbeds(md, opts = {}) {
   let base = opts.base || '/';
   
@@ -91,7 +90,7 @@ export function obsidianEmbeds(md, opts = {}) {
     
     if (!silent) {
       const isImage = /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(content);
-      const resolvedPath = base + content;
+      const resolvedPath = './attachments/' + content;
       
       let token;
       if (isImage) {

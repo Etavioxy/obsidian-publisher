@@ -41,7 +41,7 @@ export default defineConfig({
 
       md.use(obsidianWikiLinks, { base, linkmap: wikiLinkMap });
       md.use(obsidianTags);
-      //md.use(obsidianEmbeds, { base });
+      md.use(obsidianEmbeds, { base });
       
       // 其他 markdown-it 插件配置
       // md.use(require('markdown-it-footnote'));

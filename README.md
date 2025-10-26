@@ -13,7 +13,11 @@ TODO:
     * [ ] 404 & error detect
 * [ ] frontend
     * [ ] sites markdown
-        * [ ] wiki links
+        * [x] wiki links
+        * [ ] GFM task list
+        * [ ] KaTeX
+        * [ ] mermaid
+    * [ ] index.md config
     * [ ] register & permission page
     * [ ] better theme support
 * [ ] cicd
