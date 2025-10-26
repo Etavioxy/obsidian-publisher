@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Admin Analyzer</title>
+  <style>body{font-family:system-ui,Segoe UI,Arial;padding:18px;max-width:900px}button{padding:6px 10px;margin:4px}textarea{width:100%;height:220px;margin-top:8px}</style>
+</head>
+<body>
+  <h1>Admin Analyzer</h1>
+  <p>Probes <code>localhost:8080</code> then queries admin endpoints via this proxy.</p>
+
+  <div>
+    <label>Admin key: <input id="key" style="width:300px" value="your_jwt_secret_key" placeholder="your_jwt_secret_key"></label>
+  </div>
+
+  <div style="margin-top:10px">
+    <button id="probe">Probe 8080</button>
+    <button id="all">Admin All</button>
+    <button id="storage">Admin Storage</button>
+    <button id="sites">Admin Sites</button>
+  </div>
+
+  <h3>Output</h3>
+  <div style="display:flex;gap:12px;align-items:flex-start;">
+    <div style="flex:1;min-width:320px">
+      <textarea id="out" readonly style="height:260px"></textarea>
+    </div>
+    <div style="width:380px">
+      <div id="summary" style="font-size:14px;margin-bottom:8px;color:#222">Summary: -</div>
+      <canvas id="storageChart" width="360" height="180" style="background:#fff;border:1px solid #eee"></canvas>
+      <canvas id="sitesChart" width="360" height="180" style="background:#fff;border:1px solid #eee;margin-top:8px"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    const out = document.getElementById('out');
+    const keyInput = document.getElementById('key');
+    const summary = document.getElementById('summary');
+    const storageCtx = document.getElementById('storageChart').getContext('2d');
+    const sitesCtx = document.getElementById('sitesChart').getContext('2d');
+    let storageChart, sitesChart;
+    function show(v){ out.value = JSON.stringify(v, null, 2); }
+
+    function humanBytes(n){ if(!n) return '0 B'; const i=Math.floor(Math.log(n)/Math.log(1024)); return (n/Math.pow(1024,i)).toFixed(1)+' '+['B','KB','MB','GB','TB'][i]; }
+
+    function updateStorageChart(labels, values){
+      console.log('Updating storage chart', labels, values);
+      if (storageChart) storageChart.destroy();
+      storageChart = new Chart(storageCtx, {type:'pie',data:{labels, datasets:[{data:values, backgroundColor:labels.map((_,i)=>['#4e79a7','#f28e2c','#e15759','#76b7b2','#59a14f'][i%5])}]}, options:{plugins:{legend:{position:'bottom'}}}});
+    }
+
+    function updateSitesChart(labels, values){
+      if (sitesChart) sitesChart.destroy();
+      sitesChart = new Chart(sitesCtx, {type:'bar',data:{labels, datasets:[{label:'Count', data:values, backgroundColor:'#4e79a7'}]}, options:{scales:{y:{beginAtZero:true}}}});
+    }
+
+    async function call(path){
+      out.value = 'Loading...';
+      const key = keyInput.value ? `?key=${encodeURIComponent(keyInput.value)}` : '';
+      try{
+        const res = await fetch(path + key);
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')){
+          const j = await res.json(); show(j); renderSmart(path, j);
+        } else {
+          const t = await res.text(); out.value = t;
+        }
+      }catch(e){ out.value = 'Error: '+ (e.message||e); }
+    }
+
+    function renderSmart(path, j){
+      // admin/storage -> Storage Details Format or storage field inside admin/all
+      if (path.includes('storage')){
+        summary.textContent = 'Storage summary';
+        let labels = [], values = [];
+        // per_site may be array of objects or an object map
+        if (j.per_site && Array.isArray(j.per_site)){
+          labels = j.per_site.map(s => s.id || s.siteId || s.path || s.name || String(s));
+          values = j.per_site.map(s => Number(s.size || s.bytes || s.size_bytes || 0));
+        } else if (j.per_site && typeof j.per_site === 'object'){
+          const entries = Object.entries(j.per_site);
+          labels = entries.map(e=>e[0]);
+          values = entries.map(e=>Number(e[1]||0));
+        } else if (Array.isArray(j.sites)){
+          labels = j.sites.map(s => s.id || s.siteId || s.name || s.path || 'site');
+          values = j.sites.map(s => Number(s.size || s.bytes || 0));
+        }
+
+        const total = Number(j.total_bytes || j.total || (values.length? values.reduce((a,b)=>a+b,0):0));
+        if (labels.length){
+          const top = labels.map((lab,i)=>({lab, val: values[i]||0})).sort((a,b)=>b.val-a.val).slice(0,10);
+          updateStorageChart(top.map(t=>t.lab), top.map(t=>t.val));
+        }
+        summary.textContent = `Total: ${humanBytes(total)} · Sites: ${Number(j.total_sites||labels.length||0)}`;
+      }
+
+      // admin/sites -> Site Directory Check Format
+      if (path.includes('sites')){
+        summary.textContent = 'Sites directory check';
+        const orphan = Array.isArray(j.orphan_site_dirs)? j.orphan_site_dirs.length : (Array.isArray(j.fs_only)? j.fs_only.length : 0);
+        const missing = Array.isArray(j.missing_site_dirs)? j.missing_site_dirs.length : (Array.isArray(j.db_only)? j.db_only.length : 0);
+        const dbCount = Array.isArray(j.db_site_ids)? j.db_site_ids.length : (Array.isArray(j.sites)? j.sites.length : 0);
+        const diskCount = Array.isArray(j.disk_site_dirs)? j.disk_site_dirs.length : (Array.isArray(j.disk_dirs)? j.disk_dirs.length : 0);
+        updateSitesChart(['orphan_on_disk','missing_on_disk','db_count','disk_count'], [orphan, missing, dbCount||0, diskCount||0]);
+        summary.textContent = `Orphan: ${orphan} · Missing: ${missing} · DB: ${dbCount} · Disk: ${diskCount}`;
+      }
+    }
+
+    document.getElementById('probe').onclick = ()=> call('/probe');
+    document.getElementById('all').onclick = ()=> call('/admin/all');
+    document.getElementById('storage').onclick = ()=> call('/admin/storage');
+    document.getElementById('sites').onclick = ()=> call('/admin/sites');
+  </script>
+</body>
+</html>

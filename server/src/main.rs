@@ -46,6 +46,8 @@ async fn main() -> anyhow::Result<()> {
     // 公开路由（不需要认证）
     let public_routes = Router::new()
         .route("/api/admin/all", get(admin_handlers::admin_all))
+        .route("/api/admin/sites", get(admin_handlers::admin_sites))
+        .route("/api/admin/storage", get(admin_handlers::admin_storage))
         .route("/api/sites", get(site_handlers::list_all))
         .with_state((storage.clone(), config.clone()))
         .route("/auth/register", post(auth_handlers::register))
@@ -90,6 +92,8 @@ async fn main() -> anyhow::Result<()> {
     info!("🚀 Server running on {}", config.server.url());
     info!("📚 API endpoints:");
     info!("  GET    /api/admin/all    - Debugging");
+    info!("  GET    /api/admin/sites  - DB <-> disk mismatch check (requires ?key=JWT_SECRET)");
+    info!("  GET    /api/admin/storage - Storage usage summary (requires ?key=JWT_SECRET)");
     info!("  GET    /api/sites        - 列出站点");
     info!("  POST   /auth/register    - 用户注册");
     info!("  POST   /auth/login       - 用户登录");
