@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { buildSite } from './builder';
-import { createArchive, uploadArchive } from './uploader';
+import { createArchive } from './packer';
+import { uploadArchive } from './uploader';
 import fs from './utils/fs';
 import * as path from 'path';
 
