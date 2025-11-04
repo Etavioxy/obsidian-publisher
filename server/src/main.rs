@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter("debug")
         .init();
 
-    // 加载配置
+    // 加载配置，默认是cwd的config.json
     let config = Arc::new(Config::load()?);
     info!("🔧 Configuration loaded");
 
