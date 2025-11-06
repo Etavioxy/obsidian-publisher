@@ -5,6 +5,7 @@ mod utils;
 mod handlers;
 mod models;
 mod storage;
+mod services;
 
 use auth::{auth_middleware, AuthService, TokenService};
 use axum::{

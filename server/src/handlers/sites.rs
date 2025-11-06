@@ -5,6 +5,7 @@ use crate::{
     storage::Storage,
     config::Config,
     utils::archive,
+    services::site_service::SiteService,
 };
 use axum::{
     extract::{Multipart, Path, State},
@@ -22,67 +23,9 @@ pub async fn upload_site(
 ) -> Result<Json<SiteResponse>, AppError> {
     let user_id = user.id;
 
-    // 处理上传的文件
-    let mut site_id = None;
-    
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| AppError::Internal(e.to_string()))? 
-    {
-        let name = field.name().unwrap_or("unknown").to_string();
-        
-        match (name.as_ref(), site_id) {
-            ("uuid", _) => {
-                let id = field.text().await
-                    .map_err(|e| AppError::Internal(e.to_string()))?;
-
-                site_id = Some(Uuid::parse_str(&id)
-                    .map_err(|e| AppError::InvalidInput(e.to_string()))?);
-            },
-            ("site", None) => {
-                return Err(AppError::InvalidInput("reading site archive without uuid ?????".to_string()));
-            },
-            ("site", Some(site_id)) => {
-                let site_dir = storage.sites.get_site_files_path(site_id);
-                // 创建站点文件目录
-                std::fs::create_dir_all(&site_dir)?;
-
-                let file_name = field.file_name().ok_or_else(
-                    || AppError::InvalidInput("Uploaded file must have a filename".to_string())
-                )?.to_string();
-
-                let archive_path = site_dir.join(&file_name);
-                // 流式写入文件，避免将整个文件读入内存
-                archive::save_archive_field(field, &archive_path).await?;
-                debug!("Saved archive to {:?}", archive_path);
-
-                // 解压并清理
-                archive::extract_archive(&archive_path, &site_dir).await?;
-                tokio::fs::remove_file(&archive_path).await?;
-            },
-            _ => ()
-        }
-    }
-
-    let site_id = match site_id {
-        Some(id) => id,
-        None => { return Err(AppError::InvalidInput("Missing site uuid".to_string())); },
-    };
-
-    // 创建站点记录
-    let site = Site::new(
-        site_id,
-        user_id,
-        "Uploaded Site".to_string(),
-        "Site uploaded from CLI".to_string(),
-    );
-
-    storage.sites.create(site.clone())?;
-
-    // 更新用户的站点列表
-    if let Some(mut user) = storage.users.get(user_id)? {
-        user.add_site(site_id);
-        storage.users.update(user)?;
-    }
+    // delegate business logic to service layer
+    let service = SiteService::new(storage.clone());
+    let site = service.process_upload(user_id, multipart).await?;
 
     let response = SiteResponse::from_site(site, config.server.url().as_ref());
     Ok(Json(response))
