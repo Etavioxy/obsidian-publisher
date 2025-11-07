@@ -100,7 +100,7 @@ pub async fn get_user_stats(
 
     let site_responses: Vec<SiteResponse> = sites
         .into_iter()
-        .map(|site| SiteResponse::from_site(site, config.server.url().as_ref()))
+        .map(|site| SiteResponse::from_site(site, config.server.url.as_ref()))
         .collect();
 
     let stats = UserStatsResponse {

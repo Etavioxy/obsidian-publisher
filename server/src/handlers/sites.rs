@@ -84,7 +84,7 @@ pub async fn upload_site(
         storage.users.update(user)?;
     }
 
-    let response = SiteResponse::from_site(site, config.server.url().as_ref());
+    let response = SiteResponse::from_site(site, config.server.url.as_ref());
     Ok(Json(response))
 }
 
@@ -94,7 +94,7 @@ pub async fn list_all(
     let sites = storage.sites.list_all()?;
     let responses: Vec<SiteResponse> = sites
         .into_iter()
-        .map(|site| SiteResponse::from_site(site, config.server.url().as_ref()))
+        .map(|site| SiteResponse::from_site(site, config.server.url.as_ref()))
         .collect();
 
     Ok(Json(responses))
@@ -118,7 +118,7 @@ pub async fn update_site(
     site.description = req.description;
     storage.sites.update(site.clone())?;
 
-    let response = SiteResponse::from_site(site, config.server.url().as_ref());
+    let response = SiteResponse::from_site(site, config.server.url.as_ref());
     Ok(Json(response))
 }
 

@@ -26,8 +26,15 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter("debug")
         .init();
 
-    // 加载配置，默认是cwd的config.json
-    let config = Arc::new(Config::load()?);
+    let args: Vec<String> = std::env::args().collect();
+    let (show_help, config_path) = utils::parse_args::parse_args(&args);
+    if show_help {
+        let prog = args.get(0).map(|s| s.as_str()).unwrap_or("server");
+        println!("Usage: {} --config <path>\n\nOptions:\n  --config <path>    Specify config file (default: config.json)\n  -h, --help         Show this help\n", prog);
+        return Ok(());
+    }
+
+    let config = Arc::new(Config::load_from(&config_path)?);
     info!("🔧 Configuration loaded");
 
     // 初始化存储
@@ -79,8 +86,6 @@ async fn main() -> anyhow::Result<()> {
         .route_layer(auth_middleware_layer)
         .merge(public_routes)
         .nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path_str("")))
-        //.nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
-        //.nest_service("/", ServeDir::new(storage.sites.get_site_files_path(uuid::Uuid::nil())))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .layer(DefaultBodyLimit::disable())
@@ -88,8 +93,8 @@ async fn main() -> anyhow::Result<()> {
             250 * 1024 * 1024, /* 250mb */
         ));
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server.port)).await?;
-    info!("🚀 Server running on {}", config.server.url());
+    let listener = tokio::net::TcpListener::bind(config.server.bind_url()).await?;
+    info!("🚀 Server running on {}", config.server.bind_url());
     info!("📚 API endpoints:");
     info!("  GET    /api/admin/all    - Debugging");
     info!("  GET    /api/admin/sites  - DB <-> disk mismatch check (requires ?key=JWT_SECRET)");

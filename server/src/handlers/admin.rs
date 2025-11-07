@@ -51,7 +51,7 @@ pub async fn admin_all(
     let report = AdminReport {
         sites: sites
             .into_iter()
-            .map(|site| SiteResponse::from_site(site, config.server.url().as_ref()))
+            .map(|site| SiteResponse::from_site(site, config.server.url.as_ref()))
             .collect(),
         users,
         config: (*config).clone(),
