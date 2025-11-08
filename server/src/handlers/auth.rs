@@ -29,6 +29,6 @@ pub async fn me(
     State(auth_service): State<Arc<AuthService>>,
     AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<crate::models::UserResponse>, AppError> {
-    let user = auth_service.user_storage.get(auth_user.id)?.ok_or(AppError::UserNotFound)?;
+    let user = auth_service.user_storage.get(auth_user.id).await?.ok_or(AppError::UserNotFound)?;
     Ok(Json(user.into()))
 }

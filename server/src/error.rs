@@ -9,7 +9,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Database(#[from] sled::Error),
+    Database(String),
     
     #[error("JWT error: {0}")]
     Jwt(#[from] jsonwebtoken::errors::Error),
@@ -64,5 +64,19 @@ impl IntoResponse for AppError {
         }));
 
         (status, body).into_response()
+    }
+}
+
+// Conversion helpers for underlying DB errors
+impl From<sled::Error> for AppError {
+    fn from(e: sled::Error) -> Self {
+        AppError::Database(e.to_string())
+    }
+}
+
+#[cfg(feature = "orm")]
+impl From<sqlx::Error> for AppError {
+    fn from(e: sqlx::Error) -> Self {
+        AppError::Database(e.to_string())
     }
 }

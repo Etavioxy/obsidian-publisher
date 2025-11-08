@@ -45,8 +45,8 @@ pub async fn admin_all(
         _ => return Err(AppError::AuthorizationFailed),
     }
 
-    let sites = storage.sites.list_all()?;
-    let users = storage.users.list_all()?;
+    let sites = storage.sites.list_all().await?;
+    let users = storage.users.list_all().await?;
 
     let report = AdminReport {
         sites: sites
@@ -82,7 +82,7 @@ pub async fn admin_sites(
         _ => return Err(AppError::AuthorizationFailed),
     }
 
-    let sites = storage.sites.list_all()?;
+    let sites = storage.sites.list_all().await?;
     let db_site_ids: Vec<String> = sites.iter().map(|s| s.id.to_string()).collect();
 
     let sites_base: PathBuf = config.storage.path.join("sites");

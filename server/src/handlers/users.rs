@@ -22,8 +22,8 @@ pub async fn get_user_profile(
 ) -> Result<Json<UserProfileResponse>, AppError> {
     let user_id = user.id;
 
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
-    let sites = storage.sites.list_by_owner(user_id)?;
+    let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
+    let sites = storage.sites.list_by_owner(user_id).await?;
     
     let site_responses: Vec<SiteResponse> = sites
         .into_iter()
@@ -47,13 +47,13 @@ pub async fn update_user_profile(
 ) -> Result<Json<UserResponse>, AppError> {
     let user_id = user.id;
 
-    let mut user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
+    let mut user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
 
     // 更新用户名（如果提供且不为空）
     if let Some(username) = req.username {
         if !username.trim().is_empty() {
             // 检查用户名是否已被其他用户使用
-            if let Some(existing_user) = storage.users.get_by_username(&username)? {
+            if let Some(existing_user) = storage.users.get_by_username(&username).await? {
                 if existing_user.id != user_id {
                     return Err(AppError::InvalidInput("Username already taken".to_string()));
                 }
@@ -62,7 +62,7 @@ pub async fn update_user_profile(
         }
     }
 
-    storage.users.update(user.clone())?;
+    storage.users.update(user.clone()).await?;
     Ok(Json(UserResponse::from(user)))
 }
 
@@ -73,7 +73,7 @@ pub async fn delete_user_account(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let user_id = user.id;
 
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
+    let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
 
     // 用户有站点
     if user.sites.len() > 0 {
@@ -81,7 +81,7 @@ pub async fn delete_user_account(
     }
 
     // 删除用户
-    storage.users.delete(user_id)?;
+    storage.users.delete(user_id).await?;
 
     Ok(Json(serde_json::json!({
         "message": "User account deleted successfully"
@@ -95,8 +95,8 @@ pub async fn get_user_stats(
 ) -> Result<Json<UserStatsResponse>, AppError> {
     let user_id = user.id;
 
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
-    let sites = storage.sites.list_by_owner(user_id)?;
+    let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
+    let sites = storage.sites.list_by_owner(user_id).await?;
 
     let site_responses: Vec<SiteResponse> = sites
         .into_iter()
