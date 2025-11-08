@@ -8,7 +8,7 @@ TODO:
     * [ ] build filter
 * [ ] server
     * [x] architecture
-    * [ ] admin panel
+    * [x] admin panel
     * [ ] visibility
     * [ ] 404 & error detect
 * [ ] frontend
@@ -20,9 +20,8 @@ TODO:
     * [ ] index.md config
     * [ ] register & permission page
     * [ ] better theme support
-* [ ] cicd
-    * [ ] docker
-    * [ ] force https
+* [x] cicd
+    * [x] docker
     
 misc:
 

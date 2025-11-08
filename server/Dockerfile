@@ -5,8 +5,15 @@ WORKDIR /usr/src/server
 
 # Copy manifest and source
 COPY Cargo.toml Cargo.lock ./
-COPY src ./src
-COPY config.json ./config.json
+# Install dependencies
+RUN cargo fetch
+# Cache build of dependencies
+RUN cargo build --release || true
+COPY src ./src 
+
+# Debug: print the copied src/main.rs into build logs
+# use `--progress=plain`
+#RUN echo "----- src/main.rs ----" && cat src/main.rs || true
 
 # Build release
 RUN cargo build --release
@@ -22,7 +29,7 @@ WORKDIR /app
 # Copy binary from builder (assumes package name produces 'server' binary)
 ## The compiled binary name comes from Cargo.toml package.name
 ## Copy the actual binary produced by cargo build --release
-COPY --from=builder /usr/src/server/target/release/obsidian-publisher-server /usr/local/bin/server
+COPY --from=builder /usr/src/server/target/release/obsidian-publisher-server /usr/local/bin/obsidian-publisher-server
 
 EXPOSE 8080
 
