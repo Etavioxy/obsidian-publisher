@@ -3,6 +3,14 @@ name = "obsidian-publisher-server"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "obsidian_publisher_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "obsidian-publisher-server"
+path = "src/main.rs"
+
 [dependencies]
 # Web框架
 axum = { version = "0.8.6", features = ["multipart", "macros"] }
@@ -38,3 +46,6 @@ futures-util = "0.3.31"
 thiserror = "2.0.17"
 async-trait = "0.1.89"
 regex = "1.12.2"
+
+[dev-dependencies]
+tempfile = "3.8"
