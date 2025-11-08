@@ -37,8 +37,8 @@ async fn main() -> anyhow::Result<()> {
     let config = Arc::new(Config::load_from(&config_path)?);
     info!("🔧 Configuration loaded");
 
-    // 初始化存储
-    let storage = Arc::new(Storage::new(&config.storage)?);
+    // 初始化存储 (async to support ORM connection)
+    let storage = Arc::new(Storage::new(&config.storage).await?);
     info!("💾 Storage initialized");
 
     // 初始化服务

@@ -26,7 +26,7 @@ impl AuthService {
 
     pub async fn register(&self, req: RegisterRequest) -> Result<UserResponse, AppError> {
         // 检查用户是否已存在
-        if self.user_storage.get_by_username(&req.username)?.is_some() {
+        if self.user_storage.get_by_username(&req.username).await?.is_some() {
             return Err(AppError::UserAlreadyExists);
         }
 
@@ -42,7 +42,7 @@ impl AuthService {
         let user = User::new(req.username, password);
         let user_response = UserResponse::from(user.clone());
         
-        self.user_storage.create(user)?;
+    self.user_storage.create(user).await?;
         
         Ok(user_response)
     }
@@ -50,7 +50,8 @@ impl AuthService {
     pub async fn login(&self, req: LoginRequest) -> Result<LoginResponse, AppError> {
         let user = self
             .user_storage
-            .get_by_username(&req.username)?
+            .get_by_username(&req.username)
+            .await?
             .ok_or(AppError::AuthenticationFailed)?;
 
         // 验证密码
