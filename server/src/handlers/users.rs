@@ -18,12 +18,13 @@ use uuid::Uuid;
 /// 获取用户的详细信息（包括站点列表）
 pub async fn get_user_profile(
     State(storage): State<Arc<Storage>>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<UserProfileResponse>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
-    let sites = storage.sites.list_by_owner(user_id)?;
+    // load full user record from storage
+    let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
+    let sites = storage.sites.list_by_owner(user_id).await?;
     
     let site_responses: Vec<SiteResponse> = sites
         .into_iter()
@@ -31,7 +32,7 @@ pub async fn get_user_profile(
         .collect();
 
     let profile = UserProfileResponse {
-        user: UserResponse::from(user),
+        user: UserResponse::from(user.clone()),
         sites: site_responses.clone(),
         total_sites: site_responses.len(),
     };
@@ -42,18 +43,18 @@ pub async fn get_user_profile(
 /// 更新用户信息
 pub async fn update_user_profile(
     State(storage): State<Arc<Storage>>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
     Json(req): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
-    let mut user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
+    let mut user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
 
     // 更新用户名（如果提供且不为空）
     if let Some(username) = req.username {
         if !username.trim().is_empty() {
             // 检查用户名是否已被其他用户使用
-            if let Some(existing_user) = storage.users.get_by_username(&username)? {
+            if let Some(existing_user) = storage.users.get_by_username(&username).await? {
                 if existing_user.id != user_id {
                     return Err(AppError::InvalidInput("Username already taken".to_string()));
                 }
@@ -62,26 +63,27 @@ pub async fn update_user_profile(
         }
     }
 
-    storage.users.update(user.clone())?;
+    storage.users.update(user.clone()).await?;
     Ok(Json(UserResponse::from(user)))
 }
 
 /// 删除用户账户
 pub async fn delete_user_account(
     State(storage): State<Arc<Storage>>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
+    let _user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
 
-    // 用户有站点
-    if user.sites.len() > 0 {
+    // 检查用户是否有站点（site 存储已按 owner 索引）
+    let user_sites = storage.sites.list_by_owner(user_id).await?;
+    if !user_sites.is_empty() {
         return Err(AppError::UserDeletionBlocked);
     }
 
     // 删除用户
-    storage.users.delete(user_id)?;
+    storage.users.delete(user_id).await?;
 
     Ok(Json(serde_json::json!({
         "message": "User account deleted successfully"
@@ -91,12 +93,12 @@ pub async fn delete_user_account(
 /// 获取用户统计信息
 pub async fn get_user_stats(
     State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<UserStatsResponse>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
-    let user = storage.users.get(user_id)?.ok_or(AppError::UserNotFound)?;
-    let sites = storage.sites.list_by_owner(user_id)?;
+    let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
+    let sites = storage.sites.list_by_owner(user_id).await?;
 
     let site_responses: Vec<SiteResponse> = sites
         .into_iter()

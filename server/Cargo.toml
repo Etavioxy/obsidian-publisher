@@ -34,6 +34,7 @@ flate2 = "1.1.2"
 tar = "0.4.44"
 zip = "5.1.1"
 sled = "0.34.7"
+sea-orm = { version = "0.12", optional = true, features = ["macros", "sqlx-sqlite", "sqlx-postgres", "runtime-tokio-rustls"] }
 
 # 认证
 bcrypt = "0.15"
@@ -47,5 +48,14 @@ thiserror = "2.0.17"
 async-trait = "0.1.89"
 regex = "1.12.2"
 
+# required for sea-orm entity EnumIter derives
+strum = "0.25"
+strum_macros = "0.25"
+
 [dev-dependencies]
 tempfile = "3.8"
+
+[features]
+default = ["sled"]
+sled = []
+orm = ["sea-orm"]

@@ -9,7 +9,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Database(#[from] sled::Error),
+    Database(String),
     
     #[error("JWT error: {0}")]
     Jwt(#[from] jsonwebtoken::errors::Error),
@@ -64,5 +64,32 @@ impl IntoResponse for AppError {
         }));
 
         (status, body).into_response()
+    }
+}
+
+// Conversion helpers for underlying DB errors
+impl From<sled::Error> for AppError {
+    fn from(e: sled::Error) -> Self {
+        AppError::Database(e.to_string())
+    }
+}
+
+#[cfg(feature = "orm")]
+impl From<sea_orm::DbErr> for AppError {
+    fn from(e: sea_orm::DbErr) -> Self {
+        AppError::Database(e.to_string())
+    }
+}
+
+// Convert some parsing / uuid errors into AppError::Database for convenience in storage layer
+impl From<chrono::ParseError> for AppError {
+    fn from(e: chrono::ParseError) -> Self {
+        AppError::Database(e.to_string())
+    }
+}
+
+impl From<uuid::Error> for AppError {
+    fn from(e: uuid::Error) -> Self {
+        AppError::Database(e.to_string())
     }
 }

@@ -76,13 +76,9 @@ pub async fn upload_site(
         "Site uploaded from CLI".to_string(),
     );
 
-    storage.sites.create(site.clone())?;
+    storage.sites.create(site.clone()).await?;
 
-    // 更新用户的站点列表
-    if let Some(mut user) = storage.users.get(user_id)? {
-        user.add_site(site_id);
-        storage.users.update(user)?;
-    }
+    // 站点索引由 sites 存储维护（不在 user 记录中维护 sites 列表）
 
     let response = SiteResponse::from_site(site, config.server.url.as_ref());
     Ok(Json(response))
@@ -91,7 +87,7 @@ pub async fn upload_site(
 pub async fn list_all(
     State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
 ) -> Result<Json<Vec<SiteResponse>>, AppError> {
-    let sites = storage.sites.list_all()?;
+    let sites = storage.sites.list_all().await?;
     let responses: Vec<SiteResponse> = sites
         .into_iter()
         .map(|site| SiteResponse::from_site(site, config.server.url.as_ref()))
@@ -108,7 +104,7 @@ pub async fn update_site(
 ) -> Result<Json<SiteResponse>, AppError> {
     let user_id = user.id;
 
-    let mut site = storage.sites.get(site_id)?.ok_or(AppError::SiteNotFound)?;
+    let mut site = storage.sites.get(site_id).await?.ok_or(AppError::SiteNotFound)?;
 
     // 检查权限
     if site.owner_id != user_id {
@@ -116,7 +112,7 @@ pub async fn update_site(
     }
 
     site.description = req.description;
-    storage.sites.update(site.clone())?;
+    storage.sites.update(site.clone()).await?;
 
     let response = SiteResponse::from_site(site, config.server.url.as_ref());
     Ok(Json(response))
@@ -129,20 +125,16 @@ pub async fn delete_site(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let user_id = user.id;
 
-    let site = storage.sites.get(site_id)?.ok_or(AppError::SiteNotFound)?;
+    let site = storage.sites.get(site_id).await?.ok_or(AppError::SiteNotFound)?;
 
     // 检查权限
     if site.owner_id != user_id {
         return Err(AppError::AuthorizationFailed);
     }
 
-    storage.sites.delete(site_id)?;
+    storage.sites.delete(site_id).await?;
 
-    // 从用户的站点列表中移除
-    if let Some(mut user) = storage.users.get(user_id)? {
-        user.remove_site(site_id);
-        storage.users.update(user)?;
-    }
+    // 站点索引由 sites 存储维护（不再维护用户记录中的 sites 列表）
 
     Ok(Json(serde_json::json!({
         "message": "Site deleted successfully"

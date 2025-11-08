@@ -8,7 +8,6 @@ pub struct User {
     pub username: String,
     pub password: String, // 生产环境应该hash
     pub created_at: DateTime<Utc>,
-    pub sites: Vec<Uuid>,
 }
 
 impl User {
@@ -18,18 +17,7 @@ impl User {
             username,
             password,
             created_at: Utc::now(),
-            sites: Vec::new(),
         }
-    }
-    
-    pub fn add_site(&mut self, site_id: Uuid) {
-        if !self.sites.contains(&site_id) {
-            self.sites.push(site_id);
-        }
-    }
-    
-    pub fn remove_site(&mut self, site_id: Uuid) {
-        self.sites.retain(|&id| id != site_id);
     }
 }
 
@@ -80,7 +68,6 @@ pub struct UserResponse {
     pub id: Uuid,
     pub username: String,
     pub created_at: DateTime<Utc>,
-    pub sites: Vec<Uuid>,
 }
 
 impl From<User> for UserResponse {
@@ -89,7 +76,6 @@ impl From<User> for UserResponse {
             id: user.id,
             username: user.username,
             created_at: user.created_at,
-            sites: user.sites,
         }
     }
 }
