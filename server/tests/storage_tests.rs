@@ -211,7 +211,7 @@ async fn test_site_files_path_management() {
     assert!(test_file.exists());
     
     // Delete site should remove files directory
-    storage.sites.delete(site_id).expect("Failed to delete site");
+    storage.sites.delete(site_id).await.expect("Failed to delete site");
     
     // Verify directory is removed
     assert!(!files_path.exists());
