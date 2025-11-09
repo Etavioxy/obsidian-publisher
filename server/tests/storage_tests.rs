@@ -115,7 +115,7 @@ async fn test_user_site_relationship() {
     let (storage, _temp) = create_test_storage().await;
     
     // Create user
-    let mut user = User::new("user_with_sites".to_string(), "pass".to_string());
+    let user = User::new("user_with_sites".to_string(), "pass".to_string());
     let user_id = user.id;
     storage.users.create(user.clone()).await.expect("Failed to create user");
     
@@ -128,30 +128,18 @@ async fn test_user_site_relationship() {
     let site2 = Site::new(site2_id, user_id, "Site 2".to_string(), "Second site".to_string());
     storage.sites.create(site2).await.expect("Failed to create site2");
     
-    // Update user with site references
-    user.add_site(site1_id);
-    user.add_site(site2_id);
-    storage.users.update(user.clone()).await.expect("Failed to update user");
-    
-    // Verify user has sites
-    let retrieved_user = storage.users.get(user_id).await.expect("Failed to get user").unwrap();
-    assert_eq!(retrieved_user.sites.len(), 2);
-    assert!(retrieved_user.sites.contains(&site1_id));
-    assert!(retrieved_user.sites.contains(&site2_id));
-    
-    // Verify sites belong to user
+    // Verify sites belong to user via sites storage index
     let user_sites = storage.sites.list_by_owner(user_id).await.expect("Failed to list sites");
     assert_eq!(user_sites.len(), 2);
-    
-    // Remove one site from user
-    let mut updated_user = retrieved_user.clone();
-    updated_user.remove_site(site1_id);
-    storage.users.update(updated_user).await.expect("Failed to update user");
-    
-    let final_user = storage.users.get(user_id).await.expect("Failed to get user").unwrap();
-    assert_eq!(final_user.sites.len(), 1);
-    assert!(final_user.sites.contains(&site2_id));
-    assert!(!final_user.sites.contains(&site1_id));
+    let ids: Vec<Uuid> = user_sites.iter().map(|s| s.id).collect();
+    assert!(ids.contains(&site1_id));
+    assert!(ids.contains(&site2_id));
+
+    // Remove one site and verify the index updates
+    storage.sites.delete(site1_id).await.expect("Failed to delete site1");
+    let user_sites_after = storage.sites.list_by_owner(user_id).await.expect("Failed to list sites after delete");
+    assert_eq!(user_sites_after.len(), 1);
+    assert_eq!(user_sites_after[0].id, site2_id);
 }
 
 #[tokio::test]

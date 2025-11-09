@@ -9,7 +9,7 @@ pub struct Model {
     pub username: String,
     pub password: String,
     pub created_at: String,
-    pub sites: Option<String>,
+    // sites field removed: sites are now indexed in `sites` table and queried by owner/date
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

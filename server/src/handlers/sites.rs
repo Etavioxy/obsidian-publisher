@@ -78,11 +78,7 @@ pub async fn upload_site(
 
     storage.sites.create(site.clone()).await?;
 
-    // 更新用户的站点列表
-    if let Some(mut user) = storage.users.get(user_id).await? {
-        user.add_site(site_id);
-        storage.users.update(user).await?;
-    }
+    // 站点索引由 sites 存储维护（不在 user 记录中维护 sites 列表）
 
     let response = SiteResponse::from_site(site, config.server.url.as_ref());
     Ok(Json(response))
@@ -138,11 +134,7 @@ pub async fn delete_site(
 
     storage.sites.delete(site_id).await?;
 
-    // 从用户的站点列表中移除
-    if let Some(mut user) = storage.users.get(user_id).await? {
-        user.remove_site(site_id);
-        storage.users.update(user).await?;
-    }
+    // 站点索引由 sites 存储维护（不再维护用户记录中的 sites 列表）
 
     Ok(Json(serde_json::json!({
         "message": "Site deleted successfully"

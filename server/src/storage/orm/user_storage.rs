@@ -50,8 +50,7 @@ impl UserStorage {
                 id TEXT PRIMARY KEY,
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                sites TEXT
+                created_at TEXT NOT NULL
             );"#;
             conn.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite, sql.to_owned())).await.map_err(|e| AppError::Database(e.to_string()))?;
         } else {
@@ -59,8 +58,7 @@ impl UserStorage {
                 id TEXT PRIMARY KEY,
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                sites TEXT
+                created_at TEXT NOT NULL
             );"#;
             conn.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Postgres, sql.to_owned())).await.map_err(|e| AppError::Database(e.to_string()))?;
         }
@@ -74,7 +72,6 @@ impl UserStorage {
             username: Set(user.username),
             password: Set(user.password),
             created_at: Set(user.created_at.to_rfc3339()),
-            sites: Set(Some(serde_json::to_string(&user.sites)?)),
             ..Default::default()
         };
 
@@ -85,9 +82,8 @@ impl UserStorage {
     pub async fn get(&self, id: Uuid) -> Result<Option<User>, AppError> {
         let key = id.to_string();
         if let Some(m) = users_entity::Entity::find_by_id(key).one(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))? {
-            let sites: Vec<Uuid> = serde_json::from_str(&m.sites.unwrap_or_else(|| "[]".to_string()))?;
             let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at)?.with_timezone(&chrono::Utc);
-            Ok(Some(User { id: Uuid::parse_str(&m.id)?, username: m.username, password: m.password, created_at, sites }))
+            Ok(Some(User { id: Uuid::parse_str(&m.id)?, username: m.username, password: m.password, created_at }))
         } else {
             Ok(None)
         }
@@ -95,9 +91,8 @@ impl UserStorage {
 
     pub async fn get_by_username(&self, username: &str) -> Result<Option<User>, AppError> {
         if let Some(m) = users_entity::Entity::find().filter(users_entity::Column::Username.eq(username.to_string())).one(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))? {
-            let sites: Vec<Uuid> = serde_json::from_str(&m.sites.unwrap_or_else(|| "[]".to_string()))?;
             let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at)?.with_timezone(&chrono::Utc);
-            Ok(Some(User { id: Uuid::parse_str(&m.id)?, username: m.username, password: m.password, created_at, sites }))
+            Ok(Some(User { id: Uuid::parse_str(&m.id)?, username: m.username, password: m.password, created_at }))
         } else {
             Ok(None)
         }
@@ -110,7 +105,6 @@ impl UserStorage {
             am.username = Set(user.username);
             am.password = Set(user.password);
             am.created_at = Set(user.created_at.to_rfc3339());
-            am.sites = Set(Some(serde_json::to_string(&user.sites)?));
             users_entity::Entity::update(am).exec(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))?;
             Ok(())
         } else {
@@ -128,9 +122,8 @@ impl UserStorage {
         let models = users_entity::Entity::find().order_by_desc(users_entity::Column::CreatedAt).all(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))?;
         let mut users = Vec::new();
         for m in models {
-            let sites: Vec<Uuid> = serde_json::from_str(&m.sites.unwrap_or_else(|| "[]".to_string()))?;
             let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at)?.with_timezone(&chrono::Utc);
-            users.push(User { id: Uuid::parse_str(&m.id)?, username: m.username, password: m.password, created_at, sites });
+            users.push(User { id: Uuid::parse_str(&m.id)?, username: m.username, password: m.password, created_at });
         }
         Ok(users)
     }
