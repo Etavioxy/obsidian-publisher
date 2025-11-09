@@ -15,6 +15,6 @@ volumes:
   db-data:
 
 # Notes:
-# - The server can use this Postgres instance by setting DATABASE_URL to
+# - The server can use this Postgres instance by setting PG_DATABASE_URL to
 #   postgres://obsidian:obsidian@db:5432/obsidian
 # - The application also supports sqlite by default (no docker required).
