@@ -16,8 +16,34 @@ impl SiteStorage {
             if let Some(parent) = db_path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
-            format!("sqlite://{}", db_path.display())
+            let p = db_path
+                .canonicalize()
+                .unwrap_or(db_path.clone())
+                .to_string_lossy()
+                .replace('\\', "/");
+            if p.starts_with('/') {
+                format!("sqlite://{}", p)
+            } else {
+                format!("sqlite:///{}", p)
+            }
         });
+
+        // Debug: ensure parent exists and try to create the DB file so sqlite can open it
+        if let Some(parent) = db_path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("Failed to create parent dir {}: {}", parent.display(), e);
+            }
+        }
+        match std::fs::OpenOptions::new().create(true).write(true).open(&db_path) {
+            Ok(_) => {
+                eprintln!("Touched DB file: {}", db_path.display());
+            }
+            Err(e) => {
+                eprintln!("Could not create/touch DB file {}: {}", db_path.display(), e);
+            }
+        }
+
+        eprintln!("Connecting to DB; db_path='{}' database_url='{}'", db_path.display(), database_url);
 
         let conn = Database::connect(&database_url).await.map_err(|e| AppError::Database(e.to_string()))?;
 
