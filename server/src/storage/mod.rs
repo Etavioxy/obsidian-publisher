@@ -12,11 +12,18 @@ pub mod sled;
 #[cfg(feature = "orm")]
 pub mod orm;
 
-#[cfg(feature = "sled")]
+// Debug wrapper: when enabled build both sled and orm implementations and compare results
+#[cfg(feature = "debug_sled_and_orm")]
+pub mod debug;
+
+#[cfg(all(feature = "sled", not(feature = "debug_sled_and_orm")))]
 pub use sled::*;
 
-#[cfg(feature = "orm")]
+#[cfg(all(feature = "orm", not(feature = "debug_sled_and_orm")))]
 pub use orm::*;
+
+#[cfg(feature = "debug_sled_and_orm")]
+pub use debug::*;
 
 pub struct Storage {
     pub users: UserStorage,

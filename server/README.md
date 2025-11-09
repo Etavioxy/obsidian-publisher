@@ -2,7 +2,7 @@ This folder contains the backend server.
 
 Storage implementations
 - Default (feature `sled`): uses embedded `sled` key-value DB and is the default feature.
-- ORM (feature `orm`): uses `sqlx::AnyPool` and supports SQLite (file) or PostgreSQL via `DATABASE_URL`.
+- ORM (feature `orm`): uses `sqlx::AnyPool` and supports SQLite (file) or PostgreSQL via `PG_DATABASE_URL`.
 
 Build & run
 - Default (sled):
@@ -14,8 +14,8 @@ Build & run
 - ORM with Postgres (recommended for production/testing):
   1. Start Postgres with docker-compose:
      docker-compose up -d
-  2. Export DATABASE_URL (example):
-     $env:DATABASE_URL = "postgres://obsidian:obsidian@127.0.0.1:5432/obsidian"
+  2. Export PG_DATABASE_URL (example):
+     $env:PG_DATABASE_URL = "postgres://obsidian:obsidian@127.0.0.1:5432/obsidian"
   3. Run server with orm feature:
      cargo run -p obsidian-publisher-server --features orm --bin obsidian-publisher-server
 
