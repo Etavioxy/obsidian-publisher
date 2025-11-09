@@ -18,10 +18,11 @@ use uuid::Uuid;
 /// 获取用户的详细信息（包括站点列表）
 pub async fn get_user_profile(
     State(storage): State<Arc<Storage>>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<UserProfileResponse>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
+    // load full user record from storage
     let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
     let sites = storage.sites.list_by_owner(user_id).await?;
     
@@ -31,7 +32,7 @@ pub async fn get_user_profile(
         .collect();
 
     let profile = UserProfileResponse {
-        user: UserResponse::from(user),
+        user: UserResponse::from(user.clone()),
         sites: site_responses.clone(),
         total_sites: site_responses.len(),
     };
@@ -42,10 +43,10 @@ pub async fn get_user_profile(
 /// 更新用户信息
 pub async fn update_user_profile(
     State(storage): State<Arc<Storage>>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
     Json(req): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
     let mut user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
 
@@ -69,14 +70,15 @@ pub async fn update_user_profile(
 /// 删除用户账户
 pub async fn delete_user_account(
     State(storage): State<Arc<Storage>>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
-    let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
+    let _user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
 
-    // 用户有站点
-    if user.sites.len() > 0 {
+    // 检查用户是否有站点（site 存储已按 owner 索引）
+    let user_sites = storage.sites.list_by_owner(user_id).await?;
+    if !user_sites.is_empty() {
         return Err(AppError::UserDeletionBlocked);
     }
 
@@ -91,9 +93,9 @@ pub async fn delete_user_account(
 /// 获取用户统计信息
 pub async fn get_user_stats(
     State((storage, config)): State<(Arc<Storage>, Arc<Config>)>,
-    AuthenticatedUser(user): AuthenticatedUser,
+    AuthenticatedUser(auth_user): AuthenticatedUser,
 ) -> Result<Json<UserStatsResponse>, AppError> {
-    let user_id = user.id;
+    let user_id = auth_user.id;
 
     let user = storage.users.get(user_id).await?.ok_or(AppError::UserNotFound)?;
     let sites = storage.sites.list_by_owner(user_id).await?;
