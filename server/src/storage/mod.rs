@@ -32,18 +32,39 @@ pub struct Storage {
 
 impl Storage {
     pub async fn new(config: &StorageConfig) -> Result<Self> {
-        std::fs::create_dir_all(&config.path)?;
+        std::fs::create_dir_all(&config.sites.path)?;
 
-        let users_db_path = config.path.join("users.db");
-        let sites_db_path = config.path.join("sites.db");
-        let sites_files_path = config.path.join("sites");
+        #[cfg(feature = "debug_sled_and_orm")]
+        {
+            for entry in &config.db {
+                if let Some(p) = &entry.path {
+                    std::fs::create_dir_all(p)?;
+                }
+            }
 
-        std::fs::create_dir_all(&sites_files_path)?;
+            // Each underlying implementation exposes the same public async constructors.
+            let users = UserStorage::new(config).await?;
+            let sites = SiteStorage::new(config).await?;
+            Ok(Self { users, sites })
+        }
+        #[cfg(not(feature = "debug_sled_and_orm"))]
+        {
+            use crate::User;
 
-        // Each underlying implementation exposes the same public async constructors.
-        let users = UserStorage::new(users_db_path).await?;
-        let sites = SiteStorage::new(sites_db_path, sites_files_path).await?;
+            #[cfg(feature = "orm")]
+            let backend = "sqlite";
+            #[cfg(feature = "sled")]
+            let backend = "sled";
 
-        Ok(Self { users, sites })
+            let db_path = config.db_path(backend).ok_or_else(|| anyhow::anyhow!("No database path configured for backend {}", backend))?;
+            std::fs::create_dir_all(&db_path)?;
+            let users_db_path = db_path.join("users.db");
+            let sites_db_path = db_path.join("sites.db");
+
+            let users = UserStorage::new(users_db_path).await?;
+            let sites = SiteStorage::new(sites_db_path, files_path).await?;
+            Ok(Self { users, sites })
+        }
+        
     }
 }
