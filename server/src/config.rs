@@ -48,11 +48,58 @@ impl Validate for ServerConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
+    // Static file storage configuration
+    pub sites: StaticStorageConfig,
+    // Multiple storage backends supported. Order defines preference when applicable.
+    pub db: Vec<StorageEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StaticStorageConfig {
+    /// Path to the static files directory
     pub path: PathBuf,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageEntry {
+    /// Optional logical name for this storage (useful for diagnostics)
+    pub name: Option<String>,
+    /// Backend identifier, e.g. "sled", "sqlite", "postgres", etc.
+    pub backend: String,
+    /// Optional path (for file-backed storages)
+    #[serde(default)]
+    pub path: Option<PathBuf>,
+}
+
 impl Validate for StorageConfig {
-    fn validate(&self) -> Vec<String> { Vec::new() }
+    fn validate(&self) -> Vec<String> {
+        let mut warns = Vec::new();
+        if self.db.is_empty() {
+            warns.push("storage.db is empty; no storage configured".to_string());
+        }
+        for (i, s) in self.db.iter().enumerate() {
+            if !matches!(s.backend.as_ref(), "sled" | "sqlite" | "postgres") {
+                warns.push(format!(
+                    "storage.storages[{}].backend '{}' is not supported; must be one of: sled, sqlite, postgres",
+                    i, s.backend
+                ));
+            }
+        }
+        warns
+    }
+}
+
+impl StorageConfig {
+    /// 获取第一个存储路径作为默认路径（如果有）
+    pub fn db_path(&self, backend: &str) -> Option<&PathBuf> {
+        self.db.iter().find_map(|entry| {
+            if entry.backend == backend {
+                entry.path.as_ref()
+            } else {
+                None
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,7 +121,8 @@ impl Default for Config {
                 jwt_secret: generate_secret(),
             },
             storage: StorageConfig {
-                path: PathBuf::from("./data"),
+                sites: StaticStorageConfig { path: PathBuf::from("./data/sites") },
+                db: vec![StorageEntry { name: Some("default".to_string()), backend: "sled".to_string(), path: Some(PathBuf::from("./data/sled")) }],
             },
             auth: AuthConfig {
                 allow_plaintext_password: true,
@@ -193,8 +241,8 @@ mod jwt_tests {
         let jwt = v["server"]["jwt_secret"].as_str().unwrap();
         assert!(!jwt.is_empty(), "jwt should be generated");
 
-        let path = v["storage"]["path"].as_str().unwrap();
-        assert_eq!(path, "./data");
+        let path = v["storage"]["sites"]["path"].as_str().unwrap();
+        assert_eq!(path, "./data/sites");
     }
 
     // userconfig = {jwt_secret: ""}
@@ -225,6 +273,16 @@ fn check_unknown_keys(a: &Value, b: &Value) -> Vec<String> {
                     }
                 }
             }
+            (Value::Array(arr_def), Value::Array(arr_usr)) => {
+                // default is an array - recurse into first element
+                if let Some(first_element) = arr_def.get(0) {
+                    for (i, v_usr) in arr_usr.iter().enumerate() {
+                        let new_path = format!("{}[{}]", path, i);
+                        recurse(first_element, v_usr, &new_path, warns);
+                    }
+                }
+
+            }
             (_, Value::Object(map_usr)) => {
                 // default isn't an object but user provided an object - treat all user keys as unknown
                 for k in map_usr.keys() {
@@ -253,6 +311,9 @@ fn overlay(a: &mut Value, b: &Value) {
                     }
                 }
             }
+        }
+        (Value::Array(a_arr), Value::Array(b_arr)) => {
+            *a_arr = b_arr.clone();
         }
         (a_slot, b_val) => {
             *a_slot = b_val.clone();

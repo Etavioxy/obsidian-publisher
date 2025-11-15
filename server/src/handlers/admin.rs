@@ -85,7 +85,7 @@ pub async fn admin_sites(
     let sites = storage.sites.list_all().await?;
     let db_site_ids: Vec<String> = sites.iter().map(|s| s.id.to_string()).collect();
 
-    let sites_base: PathBuf = config.storage.path.join("sites");
+    let sites_base: PathBuf = config.storage.sites.path.clone();
 
     let mut dir_names_on_disk: Vec<String> = Vec::new();
     if sites_base.exists() {
@@ -130,7 +130,7 @@ pub async fn admin_storage(
         _ => return Err(AppError::AuthorizationFailed),
     }
 
-    let sites_base: PathBuf = config.storage.path.join("sites");
+    let sites_base: PathBuf = config.storage.sites.path.clone();
 
     let mut per_site: Vec<StorageUsage> = Vec::new();
     let mut total_bytes: u64 = 0;

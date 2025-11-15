@@ -9,6 +9,20 @@
     "url": ""
   },
   "storage": {
-    "path": "./data"
+    "sites": {
+      "path": "./data/sites"
+    },
+    "db": [
+      {
+        "name": "sled_kv",
+        "backend": "sled",
+        "path": "./data/sled"
+      },
+      {
+        "name": "sqlite_local",
+        "backend": "sqlite",
+        "path": "./data/sqlite"
+      }
+    ]
   }
 }
