@@ -8,7 +8,7 @@
 /// - Test real data persistence and retrieval
 
 use obsidian_publisher_server::{
-    config::StorageConfig,
+    config::{StorageConfig, StaticStorageConfig, StorageEntry},
     models::{User, Site},
     storage::Storage,
 };
@@ -18,8 +18,18 @@ use uuid::Uuid;
 /// Helper to create an isolated storage instance for testing
 async fn create_test_storage() -> (Storage, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let sites_dir = temp_dir.path().join("sites");
+    let db_sled_dir = temp_dir.path().join("sled");
+    let db_sqlite_dir = temp_dir.path().join("sqlite");
+
     let config = StorageConfig {
-        path: temp_dir.path().to_path_buf(),
+        sites: StaticStorageConfig {
+            path: sites_dir
+        },
+        db: vec![
+            StorageEntry { name: Some("default".to_string()), backend: "sled".to_string(), path: Some(db_sled_dir) },
+            StorageEntry { name: Some("default".to_string()), backend: "sqlite".to_string(), path: Some(db_sqlite_dir) },
+        ],
     };
     
     let storage = Storage::new(&config).await.expect("Failed to create storage");

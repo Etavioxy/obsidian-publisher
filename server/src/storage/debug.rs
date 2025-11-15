@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::models::{User, Site};
-use std::path::PathBuf;
+use crate::config::StorageConfig;
 use uuid::Uuid;
 use tracing::warn;
 
@@ -70,10 +70,9 @@ macro_rules! write_both {
 }
 
 impl UserStorage {
-    pub async fn new(path: PathBuf) -> Result<Self, AppError> {
-        // sled uses the provided path; ORM will use a sibling file (with extension .orm.db)
-        let sled_path = path.clone();
-        let orm_path = path.with_extension("orm.db");
+    pub async fn new(config: &StorageConfig) -> Result<Self, AppError> {
+        let sled_path = config.db_path("sled").unwrap().join("users.db");
+        let orm_path = config.db_path("sqlite").unwrap().join("users.db");
 
         let sled = crate::storage::sled::UserStorage::new(sled_path).await?;
         let orm = crate::storage::orm::UserStorage::new(orm_path).await?;
@@ -101,10 +100,11 @@ impl UserStorage {
 
 // Generate SiteStorage methods
 impl SiteStorage {
-    pub async fn new(db_path: PathBuf, files_path: PathBuf) -> Result<Self, AppError> {
+    pub async fn new(config: &StorageConfig) -> Result<Self, AppError> {
         // sled uses the provided path; ORM will use a sibling path with .orm.db extension
-        let sled_path = db_path.clone();
-        let orm_path = db_path.with_extension("orm.db");
+        let files_path = config.sites.path.clone();
+        let sled_path = config.db_path("sled").unwrap().join("sites.db");
+        let orm_path = config.db_path("sqlite").unwrap().join("sites.db");
 
         let sled = crate::storage::sled::SiteStorage::new(sled_path, files_path.clone()).await?;
         let orm = crate::storage::orm::SiteStorage::new(orm_path, files_path.clone()).await?;
