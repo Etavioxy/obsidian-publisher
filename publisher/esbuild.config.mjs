@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import { syncPlugin } from "./esbuild.config.dev.mjs"; 
 
 const banner =
 `/*
@@ -39,6 +40,7 @@ const context = await esbuild.context({
 	treeShaking: true,
 	outfile: "main.js",
 	minify: prod,
+	plugins: prod ? [] : [syncPlugin]
 });
 
 if (prod) {

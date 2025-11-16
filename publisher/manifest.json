@@ -3,7 +3,7 @@
   "name": "Obsidian Publisher",
   "version": "0.0.1",
   "minAppVersion": "0.15.0",
-  "description": "Publish content from an Obsidian vault to a static site or a publishing server. Includes tooling and configuration for exporting notes, attachments and maintaining site structure.",
+  "description": "Publish your Obsidian vault content to a static site or publishing server with an intuitive interface. Includes build management, progress tracking, and publishing history.",
   "author": "Etavioxy",
   "authorUrl": "https://github.com/Etavioxy/obsidian-publisher",
   "fundingUrl": "https://github.com/sponsors/Etavioxy",
