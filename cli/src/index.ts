@@ -11,7 +11,7 @@ const program = new Command();
 program
   .name('obs-publish')
   .description('CLI tool for publishing Obsidian vaults')
-  .version('1.0.0');
+  .version('0.0.1');
 
 // 构建命令
 program
