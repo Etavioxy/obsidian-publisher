@@ -9,7 +9,10 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "press:dev": "vitepress dev",
-    "press:build": "vitepress build"
+    "press:build": "vitepress build",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   },
   "type": "module",
   "main": "src/index.ts",
@@ -28,7 +31,9 @@
     "@types/archiver": "^6.0.3",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.6.2",
+    "@vitest/coverage-v8": "^4.0.9",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.9"
   }
 }
