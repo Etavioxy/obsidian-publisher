@@ -6,7 +6,8 @@
     "obs-publish": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rollup --config rollup.config.mjs --configPlugin esbuild",
+    "build:tsc": "tsc",
     "dev": "tsx src/index.ts",
     "press:dev": "vitepress dev",
     "press:build": "vitepress build",
@@ -15,7 +16,7 @@
     "test:coverage": "vitest --coverage"
   },
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "packageManager": "pnpm@10.15.0",
   "dependencies": {
     "archiver": "^7.0.1",
@@ -28,10 +29,15 @@
     "vitepress": "^1.6.4"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
     "@types/archiver": "^6.0.3",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.6.2",
     "@vitest/coverage-v8": "^4.0.9",
+    "rollup": "^4.53.2",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-esbuild": "^6.2.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.9"
