@@ -280,3 +280,8 @@
 .theme-dark .obs-publisher-log {
 	background: var(--background-primary-alt);
 }
+
+/* ===== User Select ===== */
+.obs-publisher-log, .obs-publisher-info {
+	user-select: text;
+}

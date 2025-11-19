@@ -48,7 +48,7 @@ export class PublisherSettingTab extends PluginSettingTab {
 						this.plugin.settings.authToken = value;
 						await this.plugin.saveSettings();
 					});
-				text.inputEl.type = 'password';
+				//text.inputEl.type = 'password';
 				return text;
 			});
 		
