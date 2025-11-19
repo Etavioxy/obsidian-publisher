@@ -6,16 +6,17 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct TokenService {
     secret: String,
+    expiration_hours: i64,
 }
 
 impl TokenService {
-    pub fn new(secret: String) -> Self {
-        Self { secret }
+    pub fn new(secret: String, expiration_hours: i64) -> Self {
+        Self { secret, expiration_hours }
     }
 
     pub fn generate_token(&self, user_id: Uuid, username: String) -> Result<String, AppError> {
         let expiration = Utc::now()
-            .checked_add_signed(Duration::hours(24))
+            .checked_add_signed(Duration::hours(self.expiration_hours))
             .expect("valid timestamp")
             .timestamp();
 

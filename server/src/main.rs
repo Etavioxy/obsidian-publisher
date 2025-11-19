@@ -42,7 +42,10 @@ async fn main() -> anyhow::Result<()> {
     info!("💾 Storage initialized");
 
     // 初始化服务
-    let token_service = Arc::new(TokenService::new(config.server.jwt_secret.clone()));
+    let token_service = Arc::new(TokenService::new(
+        config.server.jwt_secret.clone(),
+        config.auth.token_expiration_hours,
+    ));
     let auth_service = Arc::new(AuthService::new(
         storage.users.clone(),
         (*token_service).clone(),

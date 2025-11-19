@@ -1,6 +1,7 @@
 {
   "auth": {
-    "allow_plaintext_password": true
+    "allow_plaintext_password": true,
+    "token_expiration_hours": 24
   },
   "server": {
     "host": "0.0.0.0",
@@ -9,20 +10,20 @@
     "url": ""
   },
   "storage": {
-    "sites": {
-      "path": "./data/sites"
-    },
     "db": [
       {
-        "name": "sled_kv",
         "backend": "sled",
+        "name": "sled_kv",
         "path": "./data/sled"
       },
       {
-        "name": "sqlite_local",
         "backend": "sqlite",
+        "name": "sqlite_local",
         "path": "./data/sqlite"
       }
-    ]
+    ],
+    "sites": {
+      "path": "./data/sites"
+    }
   }
 }
