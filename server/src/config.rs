@@ -105,10 +105,18 @@ impl StorageConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
     pub allow_plaintext_password: bool,
+    /// Token expiration in hours
+    pub token_expiration_hours: i64,
 }
 
 impl Validate for AuthConfig {
-    fn validate(&self) -> Vec<String> { Vec::new() }
+    fn validate(&self) -> Vec<String> {
+        let mut warns = Vec::new();
+        if self.token_expiration_hours <= 0 {
+            warns.push("auth.token_expiration_hours must be > 0".to_string());
+        }
+        warns
+    }
 }
 
 impl Default for Config {
@@ -126,6 +134,7 @@ impl Default for Config {
             },
             auth: AuthConfig {
                 allow_plaintext_password: true,
+                token_expiration_hours: 24,
             },
         }
     }
