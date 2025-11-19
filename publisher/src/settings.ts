@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: PublisherSettings = {
 	
 	// Build configuration
 	vaultPath: '',  // Will be set to vault path on load
+	basePath: '',  // Will be set to vault path on load
 	outputDir: './dist',
 	srcDir: '.',
 	excludePatterns: [

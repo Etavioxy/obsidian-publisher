@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+
+// Re-export all modules for library usage
+export { buildSite } from './builder';
+export { createArchive } from './packer';
+export { uploadArchive } from './uploader';
+
 import { buildSite } from './builder';
 import { createArchive } from './packer';
 import { uploadArchive } from './uploader';
@@ -18,7 +24,7 @@ program
   .command('build')
   .description('Build Obsidian vault to static site')
   .argument('<vault-path>', 'Path to Obsidian vault')
-  .option('-o, --output <path>', 'Output directory', './dist')
+  .option('-o, --output <path>', 'Output directory', './build')
   .option('--src-dir <path>', 'VitePress source directory', '.')
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
   .option('--only-temp <path>', 'Only prepare the temporary build directory and do not run final build', '')
@@ -29,7 +35,9 @@ program
         srcDir: options.srcDir,
         excludePatterns: options.exclude,
         onlyTemp: options.onlyTemp ? true : false,
-        optionTempDir: options.onlyTemp ? options.onlyTemp : undefined
+        optionTempDir: options.onlyTemp ? options.onlyTemp : undefined,
+        basePath: process.cwd(),
+        siteConfigDir: 'src/siteconfig'
       });
       console.log('✅ Site built successfully!');
       if (options.onlyTemp) {
@@ -97,9 +105,10 @@ program
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
   .option('--keep-temp', 'Keep temporary files for debugging')
   .action(async (vaultPath, options) => {
+    const basePath = process.cwd();
     const tempArchiveFormat = 'tar';
-    const tempBuildDir = './temp-build';
-    const tempArchive = './temp-site.tar.gz';
+    const tempBuildDir = path.join(basePath, './temp-build');
+    const tempArchive = path.join(basePath, './temp-site.tar.gz');
     let publishError: any = null;
 
     try {
@@ -107,7 +116,9 @@ program
       console.log('🏗️  Building site...');
       await buildSite(vaultPath, {
         outputDir: tempBuildDir,
-        excludePatterns: options.exclude
+        excludePatterns: options.exclude,
+        basePath,
+        siteConfigDir: 'src/siteconfig'
       });
       
       // 2. 打包

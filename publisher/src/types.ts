@@ -12,6 +12,7 @@ export interface PublisherSettings {
 	
 	// Build configuration
 	vaultPath: string;
+	basePath: string;
 	outputDir: string;
 	srcDir: string;
 	excludePatterns: string[];
@@ -35,6 +36,8 @@ export interface BuildOptions {
 	excludePatterns?: string[];
 	onlyTemp?: boolean;
 	optionTempDir?: string;
+	/** Base path used to resolve relative paths (plugin directory or other) */
+	basePath: string;
 }
 
 /**
@@ -65,6 +68,8 @@ export interface PublishOptions {
 	token: string;
 	excludePatterns?: string[];
 	keepTemp?: boolean;
+	/** Optional base path for resolving relative output/temp paths */
+	basePath: string;
 }
 
 /**
@@ -81,9 +86,14 @@ export interface CommandResult {
  * Upload result from server
  */
 export interface UploadResult {
+	id: string;
 	url: string;
-	siteId: string;
-	timestamp: number;
+	name?: string;
+	domain?: string | null;
+	description?: string;
+	created_at?: string;
+	siteId?: string;
+	timestamp?: number;
 }
 
 /**

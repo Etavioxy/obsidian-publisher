@@ -76,6 +76,16 @@ export class PublisherSettingTab extends PluginSettingTab {
 				}));
 		
 		new Setting(containerEl)
+			.setName('Base Work Path')
+			.setDesc('Please set as path to your plugin')
+			.addText(text => text
+				.setValue(this.plugin.settings.basePath)
+				.onChange(async (value) => {
+					this.plugin.settings.basePath = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		new Setting(containerEl)
 			.setName('Output Directory')
 			.setDesc('Directory where the built site will be stored')
 			.addText(text => text

@@ -195,12 +195,14 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		new Notice('Starting publish...');
 		
 		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
+		const basePath = (this.app.vault.adapter as any).basePath;
 		const result = await CommandExecutor.publish({
 			vaultPath: vaultPath,
 			serverUrl: this.settings.serverUrl,
 			token: this.settings.authToken,
 			excludePatterns: this.settings.excludePatterns,
-			keepTemp: this.settings.keepTempFiles
+			keepTemp: this.settings.keepTempFiles,
+			basePath: basePath
 		}, {
 			onProgress: (stage, progress) => {
 				this.statusBarManager?.showProgress(stage, progress);
@@ -235,7 +237,7 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		const historyEntry: PublishHistoryEntry = {
 			timestamp: Date.now(),
 			siteUrl: result.url,
-			siteId: result.siteId,
+			siteId: result.id,
 			success: true
 		};
 		

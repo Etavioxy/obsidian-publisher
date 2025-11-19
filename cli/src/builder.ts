@@ -1,10 +1,10 @@
 import fs from './utils/fs';
 import * as path from 'path';
-import { build } from 'vitepress';
 import { fileURLToPath } from 'url';
 import { analyzeSiteStructure, SiteStructure } from './site-structure';
 import { generateIndexPage } from './index-page';
 import { glob } from 'glob';
+import { exec } from 'child_process';
 
 export interface BuildOptions {
   outputDir: string;
@@ -12,6 +12,9 @@ export interface BuildOptions {
   excludePatterns?: string[];
   onlyTemp?: boolean;
   optionTempDir?: string;
+  // basePath is defined by the calling function
+  basePath: string;
+  siteConfigDir?: string;
 }
 
 export async function buildSite(vaultPath: string, options: BuildOptions) {
@@ -22,14 +25,26 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     srcDir = '.',
     excludePatterns = ['.obsidian/**', '.trash/**'],
     onlyTemp = false,
-    optionTempDir = '.temp-vitepress'
+    optionTempDir = '.temp-vitepress',
+    basePath,
+    siteConfigDir = 'siteconfig'
   } = options as BuildOptions & { tempDir?: string };
+  console.log(`options: ${JSON.stringify(options)}`);
 
-  const tempDir = path.join(process.cwd(), optionTempDir);
+  // Determine a base path for resolving relative paths. Prefer explicitly
+  // provided `basePath`, then fall back to the vault path, then process.cwd().
+  const resolutionBase = path.resolve(basePath);
+
+  const tempDir = path.isAbsolute(optionTempDir) ? optionTempDir : path.join(resolutionBase, optionTempDir);
   const docsDir = path.join(tempDir, srcDir);
-  const metaPath = path.join(outputDir, 'site-meta.json');
+  console.log(`docsDir: ${docsDir}`);
+  console.log(`outputDir: ${outputDir} isAbsolute: ${path.isAbsolute(outputDir)}`);
+  const resolvedOutputDir = path.isAbsolute(outputDir) ? outputDir : path.join(resolutionBase, outputDir);
+  console.log(`resolvedOutputDir: ${resolvedOutputDir}`);
+  const metaPath = path.join(resolvedOutputDir, 'site-meta.json');
   const siteId = crypto.randomUUID();
   const siteBase = onlyTemp ? '/' : `/sites/${siteId}/`;
+  console.log(`siteBase: ${siteBase}`);
   
   // If onlyTemp is requested and tempDir already exists, skip regeneration
   if (onlyTemp && await fs.pathExists(tempDir)) {
@@ -37,6 +52,7 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     return;
   }
 
+  console.log(`docsDir: ${docsDir}`);
   await fs.ensureDir(docsDir);
   // 检查docsDir是否为空目录
   if ((await fs.readdir(docsDir)).length > 0) {
@@ -54,12 +70,18 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     await generateIndexPage(docsDir, siteStructure);
     
     // 4. 复制 VitePress 配置文件夹
-    await copyVitePressConfig(tempDir);
+  /*
+  // 在 ES Module 环境下模拟 __dirname
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  */
+
+    await copyVitePressConfig(basePath, tempDir, siteConfigDir);
     
     // 5. 生成动态配置
     await generateConfigParams(tempDir, {
       base: siteBase,
-      outputDir,
+      outputDir: resolvedOutputDir,
       srcDir,
       excludePatterns,
       nav: siteStructure.nav,
@@ -67,7 +89,10 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
       sidebar: siteStructure.sidebar
     } as ConfigParams);
 
-    if (options.onlyTemp) return; // If onlyTemp is true, skip
+    if (options.onlyTemp) { // If onlyTemp is true, skip
+      console.log('ℹ️ Only generating temp files, skipping VitePress build and meta generation.');
+      return;
+    }
     
     // 6. 直接调用 VitePress 构建
     await buildWithVitePress(tempDir);
@@ -103,12 +128,8 @@ async function copyVaultFiles(vaultPath: string, outputDir: string, excludePatte
   }
 }
 
-async function copyVitePressConfig(tempDir: string) {
-  // 在 ES Module 环境下模拟 __dirname
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-
-  const configSourceDir = path.join(__dirname, 'siteconfig');
+async function copyVitePressConfig(basePath: string, tempDir: string, siteConfigDir: string) {
+  const configSourceDir = path.join(basePath, siteConfigDir);
   const configTargetDir = path.join(tempDir, '.vitepress');
   
   // 复制整个配置目录
@@ -141,7 +162,28 @@ export const configParams = ${JSON.stringify(params, null, 2)};
 
 async function buildWithVitePress(root: string) {
   console.log(`🔨 Building with VitePress from ${root}...`);
-  await build(root);
+  await new Promise((resolve, reject) => {
+    exec(`pnpm i vue`, { cwd: root }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ vue install failed: ${stderr}`);
+        reject(error);
+      } else {
+        console.log(`✅ vue install succeeded:\n${stdout}`);
+        resolve(stdout);
+      }
+    });
+  });
+  await new Promise((resolve, reject) => {
+    exec(`npx vitepress build`, { cwd: root }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ VitePress build failed: ${stderr}`);
+        reject(error);
+      } else {
+        console.log(`✅ VitePress build succeeded:\n${stdout}`);
+        resolve(stdout);
+      }
+    });
+  });
 }
 
 interface SiteMeta {

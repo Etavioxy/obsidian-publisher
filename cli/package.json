@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "",
   "bin": {
-    "obs-publish": "./dist/index.js"
+    "obs-publish": "./dist/index.cjs"
   },
   "scripts": {
     "build": "rollup --config rollup.config.mjs --configPlugin esbuild",
@@ -16,7 +16,30 @@
     "test:coverage": "vitest --coverage"
   },
   "type": "module",
-  "main": "dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./lib": {
+      "import": {
+        "types": "./dist/lib.d.ts",
+        "default": "./dist/lib.mjs"
+      },
+      "require": {
+        "types": "./dist/lib.d.ts",
+        "default": "./dist/lib.cjs"
+      }
+    }
+  },
   "packageManager": "pnpm@10.15.0",
   "dependencies": {
     "archiver": "^7.0.1",
@@ -25,8 +48,7 @@
     "fs-extra": "^11.3.2",
     "glob": "^11.0.3",
     "markdown-it": "^14.1.0",
-    "tar": "^7.5.1",
-    "vitepress": "^1.6.4"
+    "tar": "^7.5.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.0",
@@ -37,9 +59,11 @@
     "@vitest/coverage-v8": "^4.0.9",
     "rollup": "^4.53.2",
     "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-dts": "^6.2.3",
     "rollup-plugin-esbuild": "^6.2.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
+    "vitepress": "^1.6.4",
     "vitest": "^4.0.9"
   }
 }

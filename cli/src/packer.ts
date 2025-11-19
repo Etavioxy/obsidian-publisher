@@ -8,7 +8,7 @@ export interface ArchiveOptions {
   format?: 'tar' | 'zip';
 }
 
-export async function createArchive(buildDir: string, options: ArchiveOptions = {}): Promise<string> {
+export async function createArchive(buildDir: string, options: ArchiveOptions): Promise<string> {
   const { format = 'tar', outputPath } = options;
   const timestamp = Date.now();
   const defaultPath = `./site-${timestamp}.${format === 'tar' ? 'tar.gz' : 'zip'}`;

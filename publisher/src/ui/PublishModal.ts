@@ -128,12 +128,14 @@ export class PublishModal extends Modal {
 		
 		// Execute publish
 		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
+		const basePath = this.settings.basePath || (this.app.vault.adapter as any).basePath;
 		const result = await CommandExecutor.publish({
 			vaultPath: vaultPath,
 			serverUrl: this.settings.serverUrl,
 			token: this.settings.authToken,
 			excludePatterns: this.settings.excludePatterns,
-			keepTemp: this.settings.keepTempFiles
+			keepTemp: this.settings.keepTempFiles,
+			basePath: basePath
 		}, context);
 		
 		// Handle result
@@ -301,11 +303,13 @@ export class BuildModal extends Modal {
 		};
 		
 		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
+		const basePath = (this.app.vault.adapter as any).basePath;
 		const result = await CommandExecutor.build({
 			vaultPath: vaultPath,
 			outputDir: this.settings.outputDir,
 			srcDir: this.settings.srcDir,
-			excludePatterns: this.settings.excludePatterns
+			excludePatterns: this.settings.excludePatterns,
+			basePath: basePath
 		}, context);
 		
 		if (result.success) {

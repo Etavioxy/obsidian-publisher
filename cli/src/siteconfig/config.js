@@ -1,4 +1,3 @@
-import { defineConfig } from 'vitepress';
 import { obsidianWikiLinks, obsidianTags, obsidianEmbeds } from './plugin-obsidian.js';
 import { configParams } from './config-params.js';
 import * as path from 'path';
@@ -13,7 +12,7 @@ const {
   sidebar
 } = configParams;
 
-export default defineConfig({
+export default {
   title: 'My Obsidian Vault',
   description: 'Published from Obsidian',
   
@@ -66,4 +65,4 @@ export default defineConfig({
       copyright: 'Copyright © 2024'
     }
   }
-});
+};
