@@ -44,9 +44,7 @@ export class CommandExecutor {
 				optionTempDir: options.optionTempDir,
 				basePath: options.basePath
 			};
-			context?.onLog?.(`vaultPath ${options.vaultPath} ; basePath ${options.basePath}`);
 			await buildSite(options.vaultPath, _buildOpts);
-			context?.onLog?.(`vaultPath ${options.vaultPath} ; basePath ${options.basePath}`);
 			
 			context?.onProgress?.('build', 100, 'Build completed');
 			context?.onLog?.('✅ Site built successfully!');
@@ -170,7 +168,7 @@ export class CommandExecutor {
 			}, context);
 			
 			if (!buildResult.success) {
-				throw new Error(buildResult.message);
+				return buildResult;
 			}
 			
 			// Step 2: Pack
@@ -184,7 +182,7 @@ export class CommandExecutor {
 			}, context);
 			
 			if (!packResult.success) {
-				throw new Error(packResult.message);
+				return packResult;
 			}
 			
 			// Step 3: Upload
@@ -199,7 +197,7 @@ export class CommandExecutor {
 			}, context);
 			
 			if (!uploadResult.success) {
-				throw new Error(uploadResult.message);
+				return uploadResult;
 			}
 			
 			context?.onProgress?.('publish', 100, 'Publish completed');
