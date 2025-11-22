@@ -52,12 +52,12 @@ export default {
     nav: nav,
     sidebar: sidebar,
     
-    search: {
-      provider: 'local'
-    },
+    //search: {
+    //  provider: 'local'
+    //},
     
     socialLinks: [
-      { icon: 'github', link: 'https://github.com' }
+      { icon: 'github', link: 'https://github.com/Etavioxy/obsidian-publisher' }
     ],
     
     footer: {
