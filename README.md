@@ -7,11 +7,18 @@ TODO:
     * [x] architecture
     * [ ] build filter
     * [ ] wikiLinkMap conflicts (need obsidian consistency check)
+    * [ ] missing attachments error
 * [ ] server
     * [x] architecture
     * [x] admin panel
     * [ ] visibility
     * [ ] 404 & error detect
+    * [ ] database
+        * [ ] orm support
+        * [ ] sled optimization
+* [ ] publisher
+    * [x] architecture
+    * [ ] multiple settings
 * [ ] frontend
     * [ ] sites markdown
         * [x] wiki links
@@ -24,9 +31,11 @@ TODO:
     * [ ] better theme support
 * [x] cicd
     * [x] docker
+    * [ ] docker-compose
     
 misc:
 
 * [ ] license
 * [ ] document
+    * [ ] quick start
 * [ ] a new name
