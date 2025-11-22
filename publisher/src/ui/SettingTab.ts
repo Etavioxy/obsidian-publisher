@@ -11,6 +11,7 @@ import { SettingsValidator } from '../settings';
  */
 export class PublisherSettingTab extends PluginSettingTab {
 	plugin: ObsidianPublisherPlugin;
+	_clearClickedOnce: boolean = false;
 	
 	constructor(app: App, plugin: ObsidianPublisherPlugin) {
 		super(app, plugin);
@@ -18,6 +19,9 @@ export class PublisherSettingTab extends PluginSettingTab {
 	}
 	
 	display(): void {
+		// Reset click confirmation flag when displaying
+		this._clearClickedOnce = false;
+
 		const { containerEl } = this;
 		containerEl.empty();
 		
@@ -210,6 +214,12 @@ export class PublisherSettingTab extends PluginSettingTab {
 				.setButtonText('Clear')
 				.setWarning()
 				.onClick(async () => {
+					if (!this._clearClickedOnce) {
+						this._clearClickedOnce = true;
+						new Notice('Click again to confirm clearing history');
+						return;
+					}
+					this._clearClickedOnce = false;
 					this.plugin.publishHistory.clearHistory();
 					await this.plugin.saveSettings();
 					this.renderPublishHistory(historyContainer);
