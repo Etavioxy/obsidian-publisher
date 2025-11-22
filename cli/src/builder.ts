@@ -29,22 +29,15 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     basePath,
     siteConfigDir = 'siteconfig'
   } = options as BuildOptions & { tempDir?: string };
-  console.log(`options: ${JSON.stringify(options)}`);
 
-  // Determine a base path for resolving relative paths. Prefer explicitly
-  // provided `basePath`, then fall back to the vault path, then process.cwd().
   const resolutionBase = path.resolve(basePath);
 
   const tempDir = path.isAbsolute(optionTempDir) ? optionTempDir : path.join(resolutionBase, optionTempDir);
   const docsDir = path.join(tempDir, srcDir);
-  console.log(`docsDir: ${docsDir}`);
-  console.log(`outputDir: ${outputDir} isAbsolute: ${path.isAbsolute(outputDir)}`);
   const resolvedOutputDir = path.isAbsolute(outputDir) ? outputDir : path.join(resolutionBase, outputDir);
-  console.log(`resolvedOutputDir: ${resolvedOutputDir}`);
   const metaPath = path.join(resolvedOutputDir, 'site-meta.json');
   const siteId = crypto.randomUUID();
   const siteBase = onlyTemp ? '/' : `/sites/${siteId}/`;
-  console.log(`siteBase: ${siteBase}`);
   
   // If onlyTemp is requested and tempDir already exists, skip regeneration
   if (onlyTemp && await fs.pathExists(tempDir)) {
@@ -52,7 +45,6 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     return;
   }
 
-  console.log(`docsDir: ${docsDir}`);
   await fs.ensureDir(docsDir);
   // 检查docsDir是否为空目录
   if ((await fs.readdir(docsDir)).length > 0) {
@@ -70,12 +62,6 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     await generateIndexPage(docsDir, siteStructure);
     
     // 4. 复制 VitePress 配置文件夹
-  /*
-  // 在 ES Module 环境下模拟 __dirname
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  */
-
     await copyVitePressConfig(basePath, tempDir, siteConfigDir);
     
     // 5. 生成动态配置
@@ -162,6 +148,18 @@ export const configParams = ${JSON.stringify(params, null, 2)};
 
 async function buildWithVitePress(root: string) {
   console.log(`🔨 Building with VitePress from ${root}...`);
+  await new Promise((resolve, reject) => {
+    /* hack install vue */
+    exec(`pnpm init`, { cwd: root }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ init failed: ${stderr}`);
+        reject(error);
+      } else {
+        console.log(`✅ init succeeded:\n${stdout}`);
+        resolve(stdout);
+      }
+    });
+  });
   await new Promise((resolve, reject) => {
     exec(`pnpm i vue`, { cwd: root }, (error, stdout, stderr) => {
       if (error) {
