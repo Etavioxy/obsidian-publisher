@@ -1,13 +1,17 @@
 import fs from 'fs-extra';
 import path from 'path';
+import dotenv from 'dotenv';
 
-const plugin_dir = '';
+dotenv.config({ path: '.env-dev' });
+
+const plugin_dir = process.env.PLUGIN_DIR || null;
 
 export const syncPlugin = {
   name: "sync-after-build",
   setup(build) {
     console.log("Sync Plugin: Setting up build end listener.");
     build.onEnd((result) => {
+      if (!plugin_dir) return;
       if (result.errors.length === 0) {
         // 构建成功，执行同步
         console.log("Build completed. Syncing files...");
@@ -21,6 +25,9 @@ export const syncPlugin = {
         });
         fs.copySync("./manifest.json", path.join(plugin_dir, "manifest.json"), {
           overwrite: true // 覆盖目标目录中的现有文件
+        });
+        fs.copySync("../cli/src/siteconfig", path.join(plugin_dir, "siteconfig"), {
+          overwrite: true
         });
         
         console.log("Files synced successfully.");
