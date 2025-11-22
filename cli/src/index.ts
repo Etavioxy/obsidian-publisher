@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-
-// Re-export all modules for library usage
-export { buildSite } from './builder';
-export { createArchive } from './packer';
-export { uploadArchive } from './uploader';
-
 import { buildSite } from './builder';
 import { createArchive } from './packer';
 import { uploadArchive } from './uploader';

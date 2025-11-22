@@ -34,17 +34,6 @@ const plugins = [
 ];
 
 const configs = [
-  // Main CLI entry point - ESM
-  {
-    input: 'src/index.ts',
-    external,
-    plugins,
-    output: {
-      file: 'dist/index.mjs',
-      format: 'es',
-      sourcemap: true
-    }
-  },
   // Main CLI entry point - CJS
   {
     input: 'src/index.ts',
@@ -66,17 +55,6 @@ const configs = [
       format: 'es',
       sourcemap: true
     }
-  },
-  // Lib entry point - CJS
-  {
-    input: 'src/lib.ts',
-    external,
-    plugins,
-    output: {
-      file: 'dist/lib.cjs',
-      format: 'cjs',
-      sourcemap: true
-    }
   }
 ];
 
@@ -84,7 +62,6 @@ const configs = [
 const typeConfigs = [
   {
     input: 'src/index.ts',
-    external,
     plugins: [dts()],
     output: {
       file: 'dist/index.d.ts',
@@ -93,7 +70,6 @@ const typeConfigs = [
   },
   {
     input: 'src/lib.ts',
-    external,
     plugins: [dts()],
     output: {
       file: 'dist/lib.d.ts',

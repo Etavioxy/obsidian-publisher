@@ -20,20 +20,3 @@ export { analyzeSiteStructure } from './site-structure';
 export type { SiteStructure } from './site-structure';
 
 export { generateIndexPage } from './index-page';
-
-import { buildSite } from './builder';
-import { createArchive } from './packer';
-import { uploadArchive } from './uploader';
-import { analyzeSiteStructure } from './site-structure';
-import { generateIndexPage } from './index-page';
-
-/**
- * Default export with all functions
- */
-export default {
-  buildSite,
-  createArchive,
-  uploadArchive,
-  analyzeSiteStructure,
-  generateIndexPage
-};

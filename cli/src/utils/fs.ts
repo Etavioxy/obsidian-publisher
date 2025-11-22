@@ -6,4 +6,9 @@ export default {
     ...fs,
     ...fsp,
     createWriteStream, createReadStream
+} as FsUtils;
+
+export type FsUtils = typeof fs & typeof fsp & {
+    createWriteStream: typeof createWriteStream;
+    createReadStream: typeof createReadStream;
 };
