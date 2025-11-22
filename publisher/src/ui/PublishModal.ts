@@ -141,10 +141,10 @@ export class PublishModal extends Modal {
 		// Handle result
 		if (result.success) {
 			this.updateProgress(100, '✅ Published successfully!');
-			this.addLog(`\n🎉 Site URL: http://${result.data.url}`, 'success');
+			this.addLog(`\n🎉 Site URL: ${result.data.url}`, 'success');
 			
 			if (this.settings.showNotifications) {
-				new Notice(`Published successfully! Site URL: http://${result.data.url}`, 10000);
+				new Notice(`Published successfully! Site URL: ${result.data.url}`, 10000);
 			}
 			
 			// Call completion callback
@@ -159,7 +159,6 @@ export class PublishModal extends Modal {
 			}, 3000);
 		} else {
 			this.updateProgress(0, '❌ Publish failed');
-			this.addLog(`\n${result.message}`, 'error');
 			
 			if (this.settings.showNotifications) {
 				new Notice(`Publish failed: ${result.message}`, 10000);

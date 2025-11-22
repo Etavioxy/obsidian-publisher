@@ -6,6 +6,5 @@
   "description": "Publish your Obsidian vault content to a static site or publishing server with an intuitive interface. Includes build management, progress tracking, and publishing history.",
   "author": "Etavioxy",
   "authorUrl": "https://github.com/Etavioxy/obsidian-publisher",
-  "fundingUrl": "https://github.com/sponsors/Etavioxy",
   "isDesktopOnly": true
 }
