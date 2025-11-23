@@ -1,4 +1,5 @@
 import readline from 'readline';
+import { log } from './utils/logger';
 
 export async function promptForCredentials(serverUrl: string): Promise<string> {
   const rl = readline.createInterface({
@@ -22,7 +23,7 @@ export async function promptForCredentials(serverUrl: string): Promise<string> {
 
   const loginUrl = `${base.replace(/\/$/, '')}/auth/login`;
 
-  console.log(`🔐 Attempting to authenticate... (url: ${loginUrl})`);
+  log.info(`🔐 Attempting to authenticate... (url: ${loginUrl})`);
 
   let loginRes: Response;
   try {

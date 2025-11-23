@@ -1,16 +1,15 @@
 import fs from './utils/fs';
 import * as path from 'path';
 import { promptForCredentials } from './auth';
-
-export interface ArchiveOptions {
-  outputPath?: string;
-  format?: 'tar' | 'zip';
-}
+import { log, loggerManager, Logger, ProgressContext } from './utils/logger';
 
 export interface UploadOptions {
   serverUrl: string;
   token?: string;
   metaPath?: string;
+  progressContext?: ProgressContext;
+  customLogger?: Partial<Logger>;
+  customLoggerKey?: string;
 }
 
 export interface UploadResult {
@@ -20,9 +19,12 @@ export interface UploadResult {
 }
 
 export async function uploadArchive(archivePath: string, options: UploadOptions): Promise<UploadResult> {
+  const originalLoggerKey = loggerManager.getCurrent();
+  const switchedLoggerKey = loggerManager.useCustom(options.customLogger, options.customLoggerKey);
+
   const { serverUrl, token: tokenFromOption, metaPath } = options;
   
-  console.log(`📤 Uploading to ${serverUrl}...`);
+  log.progress(`📤 Uploading to ${serverUrl}...`, 0, options.progressContext);
   
   // 检查文件是否存在
   if (!await fs.pathExists(archivePath)) {
@@ -30,7 +32,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   }
   
   const stats = await fs.stat(archivePath);
-  console.log(`📤 Uploading ${(stats.size / 1024 / 1024).toFixed(2)} MB...`);
+  log.info(`📤 Uploading ${(stats.size / 1024 / 1024).toFixed(2)} MB...`);
   
   // Read site-meta.json to obtain uuid
   let siteUuid: string | undefined = undefined;
@@ -53,7 +55,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
     try {
       token = await promptForCredentials(serverUrl);
     } catch (error) {
-      console.error(error);
+      log.error('Upload error:', error);
       throw new Error('Aborted upload: authentication is required');
     }
   }
@@ -69,7 +71,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   
   const headers: Record<string, string> = {};
   if (token) {
-    console.log(`🔐 Token: ${token}`);
+    log.debug(`🔐 Token: ${token}`);
     headers['Authorization'] = `Bearer ${token}`;
   }
   
@@ -90,7 +92,10 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
     const result = await response.json();
     return result;
     
-  } catch (error) {
-    throw error;
+  } finally {
+    // Restore original logger
+    if (switchedLoggerKey && loggerManager.getCurrent() !== originalLoggerKey) {
+      loggerManager.switch(originalLoggerKey);
+    }
   }
 }

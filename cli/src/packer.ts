@@ -2,19 +2,27 @@ import fs from './utils/fs';
 import * as path from 'path';
 import * as tar from 'tar';
 import archiver from 'archiver';
+import { log, loggerManager, Logger, ProgressContext } from './utils/logger';
 
 export interface ArchiveOptions {
   outputPath?: string;
   format?: 'tar' | 'zip';
+  progressContext?: ProgressContext;
+  customLogger?: Partial<Logger>;
+  customLoggerKey?: string;
 }
 
 export async function createArchive(buildDir: string, options: ArchiveOptions): Promise<string> {
+  const originalLoggerKey = loggerManager.getCurrent();
+  const switchedLoggerKey = loggerManager.useCustom(options.customLogger, options.customLoggerKey);
+
   const { format = 'tar', outputPath } = options;
   const timestamp = Date.now();
   const defaultPath = `./site-${timestamp}.${format === 'tar' ? 'tar.gz' : 'zip'}`;
   const archivePath = outputPath || defaultPath;
   
-  console.log(`📦 Creating ${format} archive...`);
+  log.progress(`📦 Creating ${format} archive...`, 0, options.progressContext);
+  log.info('📁 Compressing files...', 50, options.progressContext);
   
   if (format === 'tar') {
     await tar.create(
@@ -30,7 +38,12 @@ export async function createArchive(buildDir: string, options: ArchiveOptions): 
   }
   
   const stats = await fs.stat(archivePath);
-  console.log(`📦 Archive created: ${archivePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+  log.success(`📦 Archive created: ${archivePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+  
+  // Restore original logger
+  if (switchedLoggerKey && loggerManager.getCurrent() !== originalLoggerKey) {
+    loggerManager.switch(originalLoggerKey);
+  }
   
   return path.resolve(archivePath);
 }

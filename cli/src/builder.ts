@@ -5,6 +5,9 @@ import { analyzeSiteStructure, SiteStructure } from './site-structure';
 import { generateIndexPage } from './index-page';
 import { glob } from 'glob';
 import { exec } from 'child_process';
+import { log, loggerManager, Logger } from './utils/logger';
+
+import { ProgressContext } from './utils/logger';
 
 export interface BuildOptions {
   outputDir: string;
@@ -15,11 +18,19 @@ export interface BuildOptions {
   // basePath is defined by the calling function
   basePath: string;
   siteConfigDir?: string;
+  progressContext?: ProgressContext;
+  // Optional custom logger
+  customLogger?: Logger;
+  customLoggerKey?: string;
 }
 
 export async function buildSite(vaultPath: string, options: BuildOptions) {
-  console.log(`🏗️  Building site from ${vaultPath}...`);
-  
+  // Store original logger state and switch to custom logger if provided
+  const originalLoggerKey = loggerManager.getCurrent();
+  const switchedLoggerKey = loggerManager.useCustom(options.customLogger, options.customLoggerKey);
+
+  log.progress(`🏗️  Building site from ${vaultPath}...`);
+
   const {
     outputDir,
     srcDir = '.',
@@ -28,7 +39,7 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     optionTempDir = '.temp-vitepress',
     basePath,
     siteConfigDir = 'siteconfig'
-  } = options as BuildOptions & { tempDir?: string };
+  } = options;
 
   const resolutionBase = path.resolve(basePath);
 
@@ -41,7 +52,7 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
   
   // If onlyTemp is requested and tempDir already exists, skip regeneration
   if (onlyTemp && await fs.pathExists(tempDir)) {
-    console.log(`🟡 Temp directory already exists at ${tempDir}. Skipping generation as requested.`);
+    log.progress(`� Temp directory already exists at ${tempDir}. Skipping generation as requested.`);
     return;
   }
 
@@ -53,18 +64,23 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
 
   try {
     // 1. 复制文档文件
+    log.progress('📋 Copying vault files...', 10, options.progressContext);
     await copyVaultFiles(vaultPath, docsDir, excludePatterns);
-    
+
     // 2. 生成站点结构
+    log.progress('🔍 Analyzing site structure...', 20, options.progressContext);
     const siteStructure = await analyzeSiteStructure(docsDir);
-    
+
     // 3. 生成首页
+    log.progress('📄 Generating index page...', 25, options.progressContext);
     await generateIndexPage(docsDir, siteStructure);
-    
+
     // 4. 复制 VitePress 配置文件夹
+    log.progress('⚙️ Configuring VitePress...', 30, options.progressContext);
     await copyVitePressConfig(basePath, tempDir, siteConfigDir);
-    
+
     // 5. 生成动态配置
+    log.progress('📝 Generating configuration...', 35, options.progressContext);
     await generateConfigParams(tempDir, {
       base: siteBase,
       outputDir: resolvedOutputDir,
@@ -76,12 +92,15 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     } as ConfigParams);
 
     if (options.onlyTemp) { // If onlyTemp is true, skip
-      console.log('ℹ️ Only generating temp files, skipping VitePress build and meta generation.');
+      log.info('ℹ️ Only generating temp files, skipping VitePress build and meta generation.');
       return;
     }
     
     // 6. 直接调用 VitePress 构建
+    log.progress('🏗️ Building with VitePress...', 40, options.progressContext);
     await buildWithVitePress(tempDir);
+
+    log.progress('📊 Finalizing build...', 90, options.progressContext);
     
     // 7. 生成 meta 信息
     await generateSiteMeta(metaPath, {
@@ -95,6 +114,11 @@ export async function buildSite(vaultPath: string, options: BuildOptions) {
     // 失败，清理临时文件
     await fs.remove(tempDir);
     throw error;
+  } finally {
+    // Always restore original logger state
+    if (loggerManager.getCurrent() !== originalLoggerKey) {
+      loggerManager.switch(originalLoggerKey);
+    }
   }
 }
 
@@ -121,7 +145,7 @@ async function copyVitePressConfig(basePath: string, tempDir: string, siteConfig
   // 复制整个配置目录
   await fs.copy(configSourceDir, configTargetDir);
   
-  console.log(`📝 Copied VitePress config from ${configSourceDir} to ${configTargetDir}`);
+  log.progress(`📝 Copied VitePress config from ${configSourceDir} to ${configTargetDir}`);
 }
 
 interface ConfigParams {
@@ -143,19 +167,19 @@ export const configParams = ${JSON.stringify(params, null, 2)};
 `;
   
   await fs.writeFile(configParamsPath, configParamsContent);
-  console.log('📝 Generated config parameters');
+  log.debug('📝 Generated config parameters');
 }
 
 async function buildWithVitePress(root: string) {
-  console.log(`🔨 Building with VitePress from ${root}...`);
+  log.progress(`🔨 Building with VitePress from ${root}...`);
   await new Promise((resolve, reject) => {
     /* hack install vue */
     exec(`pnpm init`, { cwd: root }, (error, stdout, stderr) => {
       if (error) {
-        console.error(`❌ init failed: ${stderr}`);
+        log.error(`init failed: ${stderr}`);
         reject(error);
       } else {
-        console.log(`✅ init succeeded:\n${stdout}`);
+        log.success(`init succeeded:\n${stdout}`);
         resolve(stdout);
       }
     });
@@ -163,10 +187,10 @@ async function buildWithVitePress(root: string) {
   await new Promise((resolve, reject) => {
     exec(`pnpm i vue`, { cwd: root }, (error, stdout, stderr) => {
       if (error) {
-        console.error(`❌ vue install failed: ${stderr}`);
+        log.error(`vue install failed: ${stderr}`);
         reject(error);
       } else {
-        console.log(`✅ vue install succeeded:\n${stdout}`);
+        log.success(`vue install succeeded:\n${stdout}`);
         resolve(stdout);
       }
     });
@@ -174,10 +198,10 @@ async function buildWithVitePress(root: string) {
   await new Promise((resolve, reject) => {
     exec(`npx vitepress build`, { cwd: root }, (error, stdout, stderr) => {
       if (error) {
-        console.error(`❌ VitePress build failed: ${stderr}`);
+        log.error(`VitePress build failed: ${stderr}`);
         reject(error);
       } else {
-        console.log(`✅ VitePress build succeeded:\n${stdout}`);
+        log.success(`VitePress build succeeded:\n${stdout}`);
         resolve(stdout);
       }
     });
@@ -191,5 +215,5 @@ interface SiteMeta {
 
 async function generateSiteMeta(metaPath: string, meta: SiteMeta) {
   await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
-  console.log(`📝 Generated site meta at ${metaPath}`);
+  log.debug(`📝 Generated site meta at ${metaPath}`);
 }

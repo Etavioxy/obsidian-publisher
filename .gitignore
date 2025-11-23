@@ -1,6 +1,6 @@
 .vscode
+.claude
 
 *.bak
 
-.claude
 /CLAUDE.md

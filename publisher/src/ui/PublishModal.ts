@@ -97,26 +97,36 @@ export class PublishModal extends Modal {
 		if (this.isPublishing) {
 			return;
 		}
-		
+
 		// Validate settings
 		if (!this.settings.authToken) {
 			new Notice('Please configure authentication token in settings');
 			return;
 		}
-		
+
 		this.isPublishing = true;
 		this.publishButton.setDisabled(true);
 		this.cancelButton.setButtonText('Close');
-		
+
 		// Clear logs
 		this.logs = [];
 		this.logContainer.empty();
 		this.updateProgress(0, 'Starting publish process...');
-		
+
 		// Create command context
 		const context: CommandContext = {
 			onProgress: (stage, progress, message) => {
-				this.updateProgress(progress, message || stage);
+				// Map CLI progress to overall progress (0-40% build, 40-60% pack, 60-100% upload)
+				let overallProgress = progress;
+				if (stage === 'build') {
+					overallProgress = Math.min(progress, 40);
+				} else if (stage === 'pack') {
+					overallProgress = 40 + Math.min(progress / 2, 20); // 40-60%
+				} else if (stage === 'publish' || stage === 'upload') {
+					overallProgress = 60 + Math.min(progress / 4, 40); // 60-100%
+				}
+
+				this.updateProgress(overallProgress, message || stage);
 			},
 			onLog: (message) => {
 				this.addLog(message);
@@ -125,7 +135,7 @@ export class PublishModal extends Modal {
 				this.addLog(`Error: ${error.message}`, 'error');
 			}
 		};
-		
+
 		// Execute publish
 		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
 		const basePath = this.settings.basePath || (this.app.vault.adapter as any).basePath;
@@ -137,21 +147,21 @@ export class PublishModal extends Modal {
 			keepTemp: this.settings.keepTempFiles,
 			basePath: basePath
 		}, context);
-		
+
 		// Handle result
 		if (result.success) {
 			this.updateProgress(100, '✅ Published successfully!');
 			this.addLog(`\n🎉 Site URL: ${result.data.url}`, 'success');
-			
+
 			if (this.settings.showNotifications) {
 				new Notice(`Published successfully! Site URL: ${result.data.url}`, 10000);
 			}
-			
+
 			// Call completion callback
 			if (this.onPublishComplete && result.data) {
 				this.onPublishComplete(result.data);
 			}
-			
+
 			// Auto-close after a delay
 			setTimeout(() => {
 				if (!this.isPublishing) return;
@@ -159,12 +169,12 @@ export class PublishModal extends Modal {
 			}, 3000);
 		} else {
 			this.updateProgress(0, '❌ Publish failed');
-			
+
 			if (this.settings.showNotifications) {
 				new Notice(`Publish failed: ${result.message}`, 10000);
 			}
 		}
-		
+
 		this.isPublishing = false;
 		this.publishButton.setDisabled(false);
 		this.publishButton.setButtonText('Publish Again');
@@ -283,12 +293,12 @@ export class BuildModal extends Modal {
 	
 	private async startBuild(): Promise<void> {
 		if (this.isBuilding) return;
-		
+
 		this.isBuilding = true;
 		this.buildButton.setDisabled(true);
 		this.logContainer.empty();
 		this.updateProgress(0, 'Starting build...');
-		
+
 		const context: CommandContext = {
 			onProgress: (stage, progress, message) => {
 				this.updateProgress(progress, message || stage);
@@ -300,7 +310,7 @@ export class BuildModal extends Modal {
 				this.addLog(`Error: ${error.message}`, 'error');
 			}
 		};
-		
+
 		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
 		const basePath = (this.app.vault.adapter as any).basePath;
 		const result = await CommandExecutor.build({
@@ -310,7 +320,7 @@ export class BuildModal extends Modal {
 			excludePatterns: this.settings.excludePatterns,
 			basePath: basePath
 		}, context);
-		
+
 		if (result.success) {
 			this.updateProgress(100, '✅ Build completed!');
 			this.addLog(`\n✅ Output directory: ${result.data.outputDir}`, 'success');
@@ -320,7 +330,7 @@ export class BuildModal extends Modal {
 			this.addLog(`\n${result.message}`, 'error');
 			new Notice(`Build failed: ${result.message}`);
 		}
-		
+
 		this.isBuilding = false;
 		this.buildButton.setDisabled(false);
 		this.buildButton.setButtonText('Build Again');
