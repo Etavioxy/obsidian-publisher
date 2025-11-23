@@ -20,3 +20,7 @@ export { analyzeSiteStructure } from './site-structure';
 export type { SiteStructure } from './site-structure';
 
 export { generateIndexPage } from './index-page';
+
+// Re-export logger
+export { log, createLogger, loggerManager } from './utils/logger';
+export type { Logger, LogLevel, ProgressContext } from './utils/logger';

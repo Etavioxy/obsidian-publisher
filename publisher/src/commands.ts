@@ -4,19 +4,21 @@
  */
 
 import { Notice } from 'obsidian';
-import { 
-	BuildOptions, 
-	PackOptions, 
-	UploadOptions, 
+import {
+	BuildOptions,
+	PackOptions,
+	UploadOptions,
 	PublishOptions,
-	CommandResult, 
+	CommandResult,
 	CommandContext,
-	UploadResult 
+	UploadResult
 } from './types';
 import path from 'path';
 
 // Import from library
 import { buildSite, createArchive, uploadArchive } from 'obsidian-publisher-cli/lib';
+import type { BuildOptions as CLIBuildOptions, ArchiveOptions as CLIArchiveOptions, UploadOptions as CLIUploadOptions } from 'obsidian-publisher-cli/lib';
+import { createAdapterLogger } from './utils/loggerAdapter';
 
 /**
  * Command executor class
@@ -27,28 +29,24 @@ export class CommandExecutor {
 	 * Execute build command
 	 */
 	static async build(
-		options: BuildOptions, 
+		options: BuildOptions,
 		context?: CommandContext
 	): Promise<CommandResult> {
 		try {
-			context?.onLog?.('Starting build process...');
-			context?.onProgress?.('build', 0, 'Preparing build environment');
-			
-			context?.onProgress?.('build', 30, 'Copying vault files');
-			
-			const _buildOpts: any = {
+			// 使用 customLogger 选项直接传递适配器 logger
+			const adapterLogger = createAdapterLogger(context);
+
+			await buildSite(options.vaultPath, {
 				outputDir: options.outputDir,
 				srcDir: options.srcDir,
 				excludePatterns: options.excludePatterns,
 				onlyTemp: options.onlyTemp,
 				optionTempDir: options.optionTempDir,
-				basePath: options.basePath
-			};
-			await buildSite(options.vaultPath, _buildOpts);
-			
-			context?.onProgress?.('build', 100, 'Build completed');
-			context?.onLog?.('✅ Site built successfully!');
-			
+				basePath: options.basePath,
+				customLogger: adapterLogger,
+				customLoggerKey: 'obsidian-build'
+			} as CLIBuildOptions);
+
 			return {
 				success: true,
 				message: 'Build completed successfully',
@@ -57,8 +55,7 @@ export class CommandExecutor {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			context?.onError?.(error as Error);
-			context?.onLog?.(`❌ Build failed: ${errorMsg}`);
-			
+
 			return {
 				success: false,
 				message: `Build failed: ${errorMsg}`,
@@ -75,17 +72,16 @@ export class CommandExecutor {
 		context?: CommandContext
 	): Promise<CommandResult> {
 		try {
-			context?.onLog?.('Starting pack process...');
-			context?.onProgress?.('pack', 0, 'Creating archive');
-			
+			// 使用 customLogger 选项直接传递适配器 logger
+			const adapterLogger = createAdapterLogger(context);
+
 			const archivePath = await createArchive(options.buildDir, {
 				outputPath: options.outputPath,
-				format: options.format || 'tar'
-			});
-			
-			context?.onProgress?.('pack', 100, 'Archive created');
-			context?.onLog?.(`✅ Archive created: ${archivePath}`);
-			
+				format: options.format || 'tar',
+				customLogger: adapterLogger,
+				customLoggerKey: 'obsidian-pack'
+			} as CLIArchiveOptions);
+
 			return {
 				success: true,
 				message: 'Archive created successfully',
@@ -94,8 +90,7 @@ export class CommandExecutor {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			context?.onError?.(error as Error);
-			context?.onLog?.(`❌ Pack failed: ${errorMsg}`);
-			
+
 			return {
 				success: false,
 				message: `Pack failed: ${errorMsg}`,
@@ -112,18 +107,17 @@ export class CommandExecutor {
 		context?: CommandContext
 	): Promise<CommandResult> {
 		try {
-			context?.onLog?.('Starting upload process...');
-			context?.onProgress?.('upload', 0, 'Uploading to server');
-			
+			// 使用 customLogger 选项直接传递适配器 logger
+			const adapterLogger = createAdapterLogger(context);
+
 			const result: UploadResult = await uploadArchive(options.archivePath, {
 				serverUrl: options.serverUrl,
 				token: options.token,
-				metaPath: options.metaPath
-			});
-			
-			context?.onProgress?.('upload', 100, 'Upload completed');
-			context?.onLog?.(`✅ Upload successful! Site URL: http://${result.url}`);
-			
+				metaPath: options.metaPath,
+				customLogger: adapterLogger,
+				customLoggerKey: 'obsidian-upload'
+			} as CLIUploadOptions);
+
 			return {
 				success: true,
 				message: 'Upload completed successfully',
@@ -132,8 +126,7 @@ export class CommandExecutor {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			context?.onError?.(error as Error);
-			context?.onLog?.(`❌ Upload failed: ${errorMsg}`);
-			
+
 			return {
 				success: false,
 				message: `Upload failed: ${errorMsg}`,
@@ -151,69 +144,75 @@ export class CommandExecutor {
 	): Promise<CommandResult> {
 		const tempBuildDir = path.join(options.basePath, './temp-build');
 		const tempArchive = path.join(options.basePath, './temp-site.tar.gz');
-		
-		try {
-			// Step 1: Build
-			context?.onLog?.('📦 Step 1/3: Building site...');
-			context?.onProgress?.('publish', 0, 'Building site');
 
-			console.log('📦 Step 1/3: Building site...');
-			console.log(options.basePath);
-			
-			const buildResult = await this.build({
-				vaultPath: options.vaultPath,
+		try {
+			// Start publish operation
+			context?.onLog?.('🚀 Starting publish process...');
+			context?.onProgress?.('publish', 0, 'Initializing');
+
+			// Step 1: Build (0-30% of overall progress)
+			context?.onLog?.('📦 Step 1/3: Building site...');
+			context?.onProgress?.('build', 0, 'Starting build');
+
+			// 使用带进度映射的适配器 logger
+			const buildAdapterLogger = createAdapterLogger(context, { stage: 'build', startProgress: 0, endProgress: 30 });
+
+			await buildSite(options.vaultPath, {
 				outputDir: tempBuildDir,
+				srcDir: undefined,
 				excludePatterns: options.excludePatterns,
-				basePath: options.basePath
-			}, context);
-			
-			if (!buildResult.success) {
-				return buildResult;
-			}
-			
-			// Step 2: Pack
+				onlyTemp: false,
+				optionTempDir: undefined,
+				basePath: options.basePath,
+				customLogger: buildAdapterLogger,
+				customLoggerKey: 'obsidian-publish-build'
+			} as CLIBuildOptions);
+
+			// Step 2: Pack (30-60% of overall progress)
 			context?.onLog?.('📦 Step 2/3: Creating archive...');
-			context?.onProgress?.('publish', 33, 'Creating archive');
-			
-			const packResult = await this.pack({
-				buildDir: tempBuildDir,
+			context?.onProgress?.('pack', 30, 'Starting archive creation');
+
+			// 使用带进度映射的适配器 logger
+			const packAdapterLogger = createAdapterLogger(context, { stage: 'pack', startProgress: 30, endProgress: 60 });
+
+			const archivePath = await createArchive(tempBuildDir, {
 				outputPath: tempArchive,
-				format: 'tar'
-			}, context);
-			
-			if (!packResult.success) {
-				return packResult;
-			}
-			
-			// Step 3: Upload
+				format: 'tar',
+				customLogger: packAdapterLogger,
+				customLoggerKey: 'obsidian-publish-pack'
+			} as CLIArchiveOptions);
+
+			// Step 3: Upload (60-95% of overall progress)
 			context?.onLog?.('📤 Step 3/3: Uploading to server...');
-			context?.onProgress?.('publish', 66, 'Uploading');
-			
-			const uploadResult = await this.upload({
-				archivePath: tempArchive,
+			context?.onProgress?.('upload', 60, 'Starting upload');
+
+			// 使用带进度映射的适配器 logger
+			const uploadAdapterLogger = createAdapterLogger(context, { stage: 'upload', startProgress: 60, endProgress: 95 });
+
+			const result: UploadResult = await uploadArchive(tempArchive, {
 				serverUrl: options.serverUrl,
 				token: options.token,
-				metaPath: `${tempBuildDir}/site-meta.json`
-			}, context);
-			
-			if (!uploadResult.success) {
-				return uploadResult;
-			}
-			
+				metaPath: `${tempBuildDir}/site-meta.json`,
+				customLogger: uploadAdapterLogger,
+				customLoggerKey: 'obsidian-publish-upload'
+			} as CLIUploadOptions);
+
+			// Complete (95-100%)
+			context?.onProgress?.('publish', 95, 'Finalizing');
 			context?.onProgress?.('publish', 100, 'Publish completed');
 			context?.onLog?.('✅ Site published successfully!');
-			
+
 			return {
 				success: true,
 				message: 'Site published successfully',
-				data: uploadResult.data
+				data: result
 			};
-			
+
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			context?.onError?.(error as Error);
 			context?.onLog?.(`❌ Publish failed: ${errorMsg}`);
-			
+
 			return {
 				success: false,
 				message: `Publish failed: ${errorMsg}`,

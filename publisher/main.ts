@@ -22,8 +22,6 @@ export default class ObsidianPublisherPlugin extends Plugin {
 	private autoSaveTimeout: number | null = null;
 
 	async onload() {
-		console.log('Loading Obsidian Publisher plugin');
-		
 		// Load settings and history
 		await this.loadSettings();
 		
@@ -53,13 +51,9 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		if (this.settings.autoPublishOnSave) {
 			this.registerAutoPublish();
 		}
-		
-		console.log('Obsidian Publisher plugin loaded');
 	}
 
 	onunload() {
-		console.log('Unloading Obsidian Publisher plugin');
-		
 		// Clean up status bar
 		if (this.statusBarManager) {
 			this.statusBarManager.destroy();

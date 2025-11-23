@@ -5,6 +5,7 @@ import { createArchive } from './packer';
 import { uploadArchive } from './uploader';
 import fs from './utils/fs';
 import * as path from 'path';
+import { log } from './utils/logger';
 
 const program = new Command();
 
@@ -33,14 +34,14 @@ program
         basePath: process.cwd(),
         siteConfigDir: 'src/siteconfig'
       });
-      console.log('✅ Site built successfully!');
+      log.success('Site built successfully!');
       if (options.onlyTemp) {
-        console.log(`🟡 Temporary build directory prepared at ${path.resolve(options.onlyTemp)}. Final build skipped as requested.`);
+        log.info(`🟡 Temporary build directory prepared at ${path.resolve(options.onlyTemp)}. Final build skipped as requested.`);
       } else {
-        console.log(`📁 Output: ${path.resolve(options.output)}`);
+        log.info(`📁 Output: ${path.resolve(options.output)}`);
       }
     } catch (error) {
-      console.error('❌ Build failed:', error);
+      log.error('Build failed:', error);
       process.exit(1);
     }
   });
@@ -58,10 +59,10 @@ program
         outputPath: options.output,
         format: options.format
       });
-      console.log('✅ Archive created successfully!');
-      console.log(`📦 Archive: ${archivePath}`);
+      log.success('Archive created successfully!');
+      log.info(`📦 Archive: ${archivePath}`);
     } catch (error) {
-      console.error('❌ Pack failed:', error);
+      log.error('Pack failed:', error);
       process.exit(1);
     }
   });
@@ -81,10 +82,10 @@ program
         token: options.token,
         metaPath: options.meta
       });
-      console.log('✅ Archive uploaded successfully!');
-      console.log(`🌐 Site URL: http://${result.url}`);
+      log.success('Archive uploaded successfully!');
+      log.info(`🌐 Site URL: http://${result.url}`);
     } catch (error) {
-      console.error('❌ Upload failed:', error);
+      log.error('Upload failed:', error);
       process.exit(1);
     }
   });
@@ -107,7 +108,7 @@ program
 
     try {
       // 0. 构建
-      console.log('🏗️  Building site...');
+      log.progress('🏗️  Building site...');
       await buildSite(vaultPath, {
         outputDir: tempBuildDir,
         excludePatterns: options.exclude,
@@ -116,30 +117,30 @@ program
       });
       
       // 2. 打包
-      console.log('📦 Creating archive...');
+      log.progress('📦 Creating archive...');
       await createArchive(tempBuildDir, {
         outputPath: tempArchive,
         format: tempArchiveFormat
       });
       
       // 3. 上传
-      console.log('📤 Uploading...');
+      log.progress('📤 Uploading...');
       const result = await uploadArchive(tempArchive, {
         serverUrl: options.server,
         token: options.token,
         metaPath: path.join(tempBuildDir, 'site-meta.json')
       });
       
-      console.log('✅ Site published successfully!');
-      console.log(`🌐 Site URL: http://${result.url}`);
+      log.success('Site published successfully!');
+      log.info(`🌐 Site URL: http://${result.url}`);
       
     } catch (error) {
       publishError = error;
-      console.error('❌ Publish failed:', error);
+      log.error('Publish failed:', error);
     } finally {
       // 清理临时文件
       if (!options.keepTemp) {
-        console.log('Cleaning:', tempBuildDir, tempArchive);
+        log.debug('Cleaning:', tempBuildDir, tempArchive);
         await fs.remove(tempBuildDir).catch(() => {});
         await fs.remove(tempArchive).catch(() => {});
       }
