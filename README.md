@@ -19,6 +19,7 @@ TODO:
 * [ ] publisher
     * [x] architecture
     * [ ] multiple settings
+    * [x] custom logger
 * [ ] frontend
     * [ ] sites markdown
         * [x] wiki links

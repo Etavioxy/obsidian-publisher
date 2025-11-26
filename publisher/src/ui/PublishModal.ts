@@ -16,11 +16,13 @@ export class PublishModal extends Modal {
 	private logContainer: HTMLElement;
 	private progressBar: HTMLElement;
 	private progressText: HTMLElement;
+	private progressNodesContainer: HTMLElement;
 	private publishButton: ButtonComponent;
 	private cancelButton: ButtonComponent;
 	
 	private isPublishing: boolean = false;
 	private logs: string[] = [];
+	private progressNodes: { progress: number; message: string }[] = [];
 	
 	constructor(
 		app: App, 
@@ -67,6 +69,11 @@ export class PublishModal extends Modal {
 		});
 		this.progressBar.style.width = '0%';
 		
+		// Container for progress nodes (hoverable dots)
+		this.progressNodesContainer = progressBarContainer.createDiv({
+			cls: 'obs-publisher-progress-nodes'
+		});
+		
 		// Log output
 		const logSection = contentEl.createDiv({ cls: 'obs-publisher-log-section' });
 		logSection.createEl('h3', { text: 'Output Log' });
@@ -108,25 +115,17 @@ export class PublishModal extends Modal {
 		this.publishButton.setDisabled(true);
 		this.cancelButton.setButtonText('Close');
 
-		// Clear logs
+		// Clear logs and progress nodes
 		this.logs = [];
+		this.progressNodes = [];
 		this.logContainer.empty();
+		this.progressNodesContainer.empty();
 		this.updateProgress(0, 'Starting publish process...');
 
 		// Create command context
 		const context: CommandContext = {
 			onProgress: (stage, progress, message) => {
-				// Map CLI progress to overall progress (0-40% build, 40-60% pack, 60-100% upload)
-				let overallProgress = progress;
-				if (stage === 'build') {
-					overallProgress = Math.min(progress, 40);
-				} else if (stage === 'pack') {
-					overallProgress = 40 + Math.min(progress / 2, 20); // 40-60%
-				} else if (stage === 'publish' || stage === 'upload') {
-					overallProgress = 60 + Math.min(progress / 4, 40); // 60-100%
-				}
-
-				this.updateProgress(overallProgress, message || stage);
+				this.updateProgress(progress, message || stage);
 			},
 			onLog: (message) => {
 				this.addLog(message);
@@ -193,6 +192,24 @@ export class PublishModal extends Modal {
 		} else {
 			this.progressBar.removeClass('obs-publisher-progress-complete');
 		}
+		
+		// Add progress node (hoverable dot) if progress changed
+		const lastNode = this.progressNodes[this.progressNodes.length - 1];
+		if (!lastNode || lastNode.progress !== progress) {
+			this.progressNodes.push({ progress, message: text });
+			this.addProgressNode(progress, text);
+		}
+	}
+	
+	/**
+	 * Add a progress node (hoverable dot) to the progress bar
+	 */
+	private addProgressNode(progress: number, message: string): void {
+		const node = this.progressNodesContainer.createDiv({
+			cls: 'obs-publisher-progress-node'
+		});
+		node.style.left = `${progress}%`;
+		node.setAttribute('aria-label', `${progress}% - ${message}`);
 	}
 	
 	/**
@@ -225,9 +242,11 @@ export class BuildModal extends Modal {
 	private logContainer: HTMLElement;
 	private progressBar: HTMLElement;
 	private progressText: HTMLElement;
+	private progressNodesContainer: HTMLElement;
 	private buildButton: ButtonComponent;
 	
 	private isBuilding: boolean = false;
+	private progressNodes: { progress: number; message: string }[] = [];
 	
 	constructor(app: App, settings: PublisherSettings) {
 		super(app);
@@ -268,6 +287,11 @@ export class BuildModal extends Modal {
 		});
 		this.progressBar.style.width = '0%';
 		
+		// Container for progress nodes (hoverable dots)
+		this.progressNodesContainer = progressBarContainer.createDiv({
+			cls: 'obs-publisher-progress-nodes'
+		});
+		
 		// Log output
 		const logSection = contentEl.createDiv({ cls: 'obs-publisher-log-section' });
 		logSection.createEl('h3', { text: 'Build Log' });
@@ -297,6 +321,8 @@ export class BuildModal extends Modal {
 		this.isBuilding = true;
 		this.buildButton.setDisabled(true);
 		this.logContainer.empty();
+		this.progressNodes = [];
+		this.progressNodesContainer.empty();
 		this.updateProgress(0, 'Starting build...');
 
 		const context: CommandContext = {
@@ -339,6 +365,24 @@ export class BuildModal extends Modal {
 	private updateProgress(progress: number, text: string): void {
 		this.progressBar.style.width = `${progress}%`;
 		this.progressText.textContent = text;
+		
+		// Add progress node (hoverable dot) if progress changed
+		const lastNode = this.progressNodes[this.progressNodes.length - 1];
+		if (!lastNode || lastNode.progress !== progress) {
+			this.progressNodes.push({ progress, message: text });
+			this.addProgressNode(progress, text);
+		}
+	}
+	
+	/**
+	 * Add a progress node (hoverable dot) to the progress bar
+	 */
+	private addProgressNode(progress: number, message: string): void {
+		const node = this.progressNodesContainer.createDiv({
+			cls: 'obs-publisher-progress-node'
+		});
+		node.style.left = `${progress}%`;
+		node.setAttribute('aria-label', `${progress}% - ${message}`);
 	}
 	
 	private addLog(message: string, type: 'info' | 'success' | 'error' = 'info'): void {

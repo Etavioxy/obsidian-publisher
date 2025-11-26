@@ -54,6 +54,36 @@
 	background: var(--color-green);
 }
 
+/* Progress Nodes (hoverable dots) */
+.obs-publisher-progress-nodes {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+}
+
+.obs-publisher-progress-node {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 8px;
+	height: 8px;
+	background: var(--text-on-accent);
+	border: 2px solid hsl(var(--accent-h), var(--accent-s), calc(100% - calc(calc(100% - var(--accent-l)) * 0.5)));
+	border-radius: 50%;
+	pointer-events: auto;
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+	z-index: 1;
+}
+
+.obs-publisher-progress-node:hover {
+	transform: translate(-50%, -50%) scale(1.5);
+	box-shadow: 0 0 6px var(--interactive-accent-hover);
+}
+
 /* ===== Log Output ===== */
 .obs-publisher-log-section {
 	margin: 20px 0;
