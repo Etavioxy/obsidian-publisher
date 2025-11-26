@@ -148,14 +148,13 @@ export class CommandExecutor {
 		try {
 			// Start publish operation
 			context?.onLog?.('🚀 Starting publish process...');
-			context?.onProgress?.('publish', 0, 'Initializing');
 
 			// Step 1: Build (0-30% of overall progress)
 			context?.onLog?.('📦 Step 1/3: Building site...');
 			context?.onProgress?.('build', 0, 'Starting build');
 
 			// 使用带进度映射的适配器 logger
-			const buildAdapterLogger = createAdapterLogger(context, { stage: 'build', startProgress: 0, endProgress: 30 });
+			const buildAdapterLogger = createAdapterLogger(context, { stage: 'build', startProgress: 0, endProgress: 40 });
 
 			await buildSite(options.vaultPath, {
 				outputDir: tempBuildDir,
@@ -173,7 +172,7 @@ export class CommandExecutor {
 			context?.onProgress?.('pack', 30, 'Starting archive creation');
 
 			// 使用带进度映射的适配器 logger
-			const packAdapterLogger = createAdapterLogger(context, { stage: 'pack', startProgress: 30, endProgress: 60 });
+			const packAdapterLogger = createAdapterLogger(context, { stage: 'pack', startProgress: 40, endProgress: 60 });
 
 			const archivePath = await createArchive(tempBuildDir, {
 				outputPath: tempArchive,
@@ -187,7 +186,7 @@ export class CommandExecutor {
 			context?.onProgress?.('upload', 60, 'Starting upload');
 
 			// 使用带进度映射的适配器 logger
-			const uploadAdapterLogger = createAdapterLogger(context, { stage: 'upload', startProgress: 60, endProgress: 95 });
+			const uploadAdapterLogger = createAdapterLogger(context, { stage: 'upload', startProgress: 60, endProgress: 100 });
 
 			const result: UploadResult = await uploadArchive(tempArchive, {
 				serverUrl: options.serverUrl,
@@ -197,8 +196,6 @@ export class CommandExecutor {
 				customLoggerKey: 'obsidian-publish-upload'
 			} as CLIUploadOptions);
 
-			// Complete (95-100%)
-			context?.onProgress?.('publish', 95, 'Finalizing');
 			context?.onProgress?.('publish', 100, 'Publish completed');
 			context?.onLog?.('✅ Site published successfully!');
 
