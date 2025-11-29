@@ -68,6 +68,18 @@ impl SiteStorage {
         }
     }
 
+    pub async fn get_by_name(&self, name: &str) -> Result<Option<Site>, AppError> {
+        if let Some(m) = sites_entity::Entity::find()
+            .filter(sites_entity::Column::Name.eq(name.to_string()))
+            .one(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))? 
+        {
+            let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at)?.with_timezone(&chrono::Utc);
+            Ok(Some(Site { id: Uuid::parse_str(&m.id)?, owner_id: Uuid::parse_str(&m.owner_id)?, name: m.name, domain: m.domain, description: m.description, created_at }))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub async fn update(&self, site: Site) -> Result<(), AppError> {
         let key = site.id.to_string();
         if let Some(m) = sites_entity::Entity::find_by_id(key.clone()).one(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))? {

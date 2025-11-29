@@ -7,34 +7,11 @@
 /// - Safe cleanup after each test
 /// - Test real data persistence and retrieval
 
-use obsidian_publisher_server::{
-    config::{StorageConfig, StaticStorageConfig, StorageEntry},
-    models::{User, Site},
-    storage::Storage,
-};
-use tempfile::TempDir;
+mod utils;
+
+use obsidian_publisher_server::models::{User, Site};
 use uuid::Uuid;
-
-/// Helper to create an isolated storage instance for testing
-async fn create_test_storage() -> (Storage, TempDir) {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let sites_dir = temp_dir.path().join("sites");
-    let db_sled_dir = temp_dir.path().join("sled");
-    let db_sqlite_dir = temp_dir.path().join("sqlite");
-
-    let config = StorageConfig {
-        sites: StaticStorageConfig {
-            path: sites_dir
-        },
-        db: vec![
-            StorageEntry { name: Some("default".to_string()), backend: "sled".to_string(), path: Some(db_sled_dir) },
-            StorageEntry { name: Some("default".to_string()), backend: "sqlite".to_string(), path: Some(db_sqlite_dir) },
-        ],
-    };
-    
-    let storage = Storage::new(&config).await.expect("Failed to create storage");
-    (storage, temp_dir)
-}
+use utils::storage::create_test_storage;
 
 #[tokio::test]
 async fn test_user_crud_lifecycle() {
@@ -213,4 +190,130 @@ async fn test_site_files_path_management() {
     
     // Verify directory is removed
     assert!(!files_path.exists());
+}
+
+#[tokio::test]
+async fn test_site_get_by_name() {
+    let (storage, _temp) = create_test_storage().await;
+    
+    // Create owner user
+    let owner = User::new("owner".to_string(), "pass".to_string());
+    let owner_id = owner.id;
+    storage.users.create(owner).await.expect("Failed to create owner");
+    
+    // Create site with a specific name
+    let site_id = Uuid::new_v4();
+    let site_name = "my-awesome-site".to_string();
+    let site = Site::new(
+        site_id,
+        owner_id,
+        site_name.clone(),
+        "A test site".to_string(),
+    );
+    storage.sites.create(site.clone()).await.expect("Failed to create site");
+    
+    // Get by name should find the site
+    let found = storage.sites.get_by_name(&site_name).await.expect("Failed to get by name");
+    assert!(found.is_some());
+    let found = found.unwrap();
+    assert_eq!(found.id, site_id);
+    assert_eq!(found.name, site_name);
+    assert_eq!(found.owner_id, owner_id);
+    
+    // Get by non-existent name should return None
+    let not_found = storage.sites.get_by_name("non-existent-site").await.expect("Failed to get by name");
+    assert!(not_found.is_none());
+}
+
+#[tokio::test]
+async fn test_site_name_uniqueness() {
+    let (storage, _temp) = create_test_storage().await;
+    
+    // Create two different owners
+    let owner1 = User::new("owner1".to_string(), "pass1".to_string());
+    let owner1_id = owner1.id;
+    storage.users.create(owner1).await.expect("Failed to create owner1");
+    
+    let owner2 = User::new("owner2".to_string(), "pass2".to_string());
+    let _owner2_id = owner2.id;
+    storage.users.create(owner2).await.expect("Failed to create owner2");
+    
+    // Owner1 creates a site with name "shared-name"
+    let site1_id = Uuid::new_v4();
+    let shared_name = "shared-name".to_string();
+    let site1 = Site::new(
+        site1_id,
+        owner1_id,
+        shared_name.clone(),
+        "First site".to_string(),
+    );
+    storage.sites.create(site1.clone()).await.expect("Failed to create site1");
+    
+    // Verify site1 can be found by name
+    let found = storage.sites.get_by_name(&shared_name).await.expect("Failed to get by name");
+    assert!(found.is_some());
+    assert_eq!(found.unwrap().owner_id, owner1_id);
+    
+    // Owner1 can create another site with a different name
+    let site2_id = Uuid::new_v4();
+    let site2 = Site::new(
+        site2_id,
+        owner1_id,
+        "another-name".to_string(),
+        "Second site".to_string(),
+    );
+    storage.sites.create(site2).await.expect("Failed to create site2 with different name");
+    
+    // Verify we can look up sites by name correctly
+    let all_sites = storage.sites.list_all().await.expect("Failed to list all");
+    assert_eq!(all_sites.len(), 2);
+    
+    // Verify get_by_name returns the correct site
+    let found_shared = storage.sites.get_by_name(&shared_name).await.expect("get_by_name failed");
+    assert!(found_shared.is_some());
+    assert_eq!(found_shared.unwrap().id, site1_id);
+    
+    let found_another = storage.sites.get_by_name("another-name").await.expect("get_by_name failed");
+    assert!(found_another.is_some());
+    assert_eq!(found_another.unwrap().id, site2_id);
+}
+
+#[tokio::test]
+async fn test_site_name_update() {
+    let (storage, _temp) = create_test_storage().await;
+    
+    // Create owner
+    let owner = User::new("owner".to_string(), "pass".to_string());
+    let owner_id = owner.id;
+    storage.users.create(owner).await.expect("Failed to create owner");
+    
+    // Create site
+    let site_id = Uuid::new_v4();
+    let original_name = "original-name".to_string();
+    let site = Site::new(
+        site_id,
+        owner_id,
+        original_name.clone(),
+        "Test site".to_string(),
+    );
+    storage.sites.create(site.clone()).await.expect("Failed to create site");
+    
+    // Verify original name lookup works
+    let found = storage.sites.get_by_name(&original_name).await.expect("get_by_name failed");
+    assert!(found.is_some());
+    
+    // Update site name
+    let new_name = "new-name".to_string();
+    let mut updated_site = storage.sites.get(site_id).await.expect("get failed").unwrap();
+    updated_site.name = new_name.clone();
+    storage.sites.update(updated_site).await.expect("update failed");
+    
+    // Verify new name lookup works
+    let found_new = storage.sites.get_by_name(&new_name).await.expect("get_by_name failed");
+    assert!(found_new.is_some());
+    assert_eq!(found_new.unwrap().id, site_id);
+    
+    // Original name should no longer find the site
+    let found_old = storage.sites.get_by_name(&original_name).await.expect("get_by_name failed");
+    assert!(found_old.is_none());
 }

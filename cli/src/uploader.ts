@@ -18,6 +18,7 @@ export interface UploadOptions {
 export interface UploadResult {
   id: string;
   url: string;
+  url_by_id?: string;
   message: string;
 }
 

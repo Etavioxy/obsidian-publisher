@@ -46,6 +46,17 @@ impl SiteStorage {
         }
     }
 
+    pub async fn get_by_name(&self, name: &str) -> Result<Option<Site>, AppError> {
+        for result in self.db.iter() {
+            let (_, value) = result?;
+            let site: Site = serde_json::from_slice(&value)?;
+            if site.name == name {
+                return Ok(Some(site));
+            }
+        }
+        Ok(None)
+    }
+
     pub async fn update(&self, site: Site) -> Result<(), AppError> {
         let key = site.id.as_bytes();
         // load existing site to remove old index if owner/date changed

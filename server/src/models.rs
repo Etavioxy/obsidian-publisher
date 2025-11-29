@@ -92,18 +92,22 @@ pub struct SiteResponse {
     pub domain: Option<String>,
     pub description: String,
     pub created_at: DateTime<Utc>,
+    /// Primary URL using siteName
     pub url: String,
+    /// URL using site UUID (alternative access path)
+    pub url_by_id: String,
 }
 
 impl SiteResponse {
     pub fn from_site(site: Site, base_url: &str) -> Self {
         Self {
             id: site.id,
-            name: site.name,
+            name: site.name.clone(),
             domain: site.domain,
             description: site.description,
             created_at: site.created_at,
-            url: format!("{}/sites/{}/", base_url, site.id),
+            url: format!("{}/sites/{}/", base_url, site.name),
+            url_by_id: format!("{}/sites/{}/", base_url, site.id),
         }
     }
 }

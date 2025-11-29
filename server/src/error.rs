@@ -39,6 +39,9 @@ pub enum AppError {
     #[error("User already exists")]
     UserAlreadyExists,
     
+    #[error("Site name already exists: {0}")]
+    SiteNameConflict(String),
+    
     #[error("User has active sites, cannot delete account")]
     UserDeletionBlocked,
     
@@ -58,6 +61,7 @@ impl IntoResponse for AppError {
             AppError::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
             AppError::SiteNotFound => (StatusCode::NOT_FOUND, "Site not found"),
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
+            AppError::SiteNameConflict(_) => (StatusCode::CONFLICT, "Site name already exists"),
             AppError::UserDeletionBlocked => (StatusCode::BAD_REQUEST, "User has active sites, cannot delete account"),
             AppError::InvalidInput(_) => (StatusCode::BAD_REQUEST, "Invalid input"),
             AppError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Configuration error"),

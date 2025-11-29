@@ -150,7 +150,7 @@ export class PublishModal extends Modal {
 		// Handle result
 		if (result.success) {
 			this.updateProgress(100, '✅ Published successfully!');
-			this.addLog(`\n🎉 Site URL: ${result.data.url}`, 'success');
+			this.addLog(`\n🎉 Site URL: ${result.data.url} ${result.data.url_by_id ? 'or ID URL: ' + result.data.url_by_id : ''}`, 'success');
 
 			if (this.settings.showNotifications) {
 				new Notice(`Published successfully! Site URL: ${result.data.url}`, 10000);
