@@ -1,0 +1,41 @@
+# ⚠️ DEBUG 模式：同时启用 sled 和 orm，仅用于开发测试
+# 构建镜像: docker build --build-arg FEATURES="debug_sled_and_orm" -t observer:debug .
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: observer-postgres-debug
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: obsidian
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-obsidian_debug}
+      POSTGRES_DB: obsidian
+    ports:
+      - "5432:5432"  # 暴露端口用于调试
+    volumes:
+      - postgres-debug-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U obsidian"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    image: observer:debug
+    container_name: observer-server-debug
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - RUST_LOG=debug
+      - DATABASE_URL=postgres://obsidian:${POSTGRES_PASSWORD:-obsidian_debug}@db:5432/obsidian
+    volumes:
+      - ./config.json:/app/config.json
+      - ./data/debug-sites:/app/data/sites
+      - ./data/debug-sled:/app/data/sled  # sled 数据目录
+
+volumes:
+  postgres-debug-data:
