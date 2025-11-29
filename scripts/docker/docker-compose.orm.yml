@@ -1,0 +1,38 @@
+# 生产环境: PostgreSQL + ORM
+# 构建镜像: docker build --build-arg FEATURES="orm" -t observer:orm .
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: observer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: obsidian
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-obsidian_secret}
+      POSTGRES_DB: obsidian
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U obsidian"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    image: observer:orm
+    container_name: observer-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgres://obsidian:${POSTGRES_PASSWORD:-obsidian_secret}@db:5432/obsidian
+    volumes:
+      - ./config.json:/app/config.json
+      - ./data/sites:/app/data/sites
+
+volumes:
+  postgres-data:

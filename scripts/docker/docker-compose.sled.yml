@@ -1,0 +1,16 @@
+# 轻量部署：仅使用 sled 嵌入式数据库，无需外部依赖
+# 构建镜像: docker build --build-arg FEATURES="sled" -t observer:sled .
+
+services:
+  server:
+    image: observer:sled
+    container_name: observer-server-sled
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./config.json:/app/config.json
+      - ./data/sites:/app/data/sites
+      - ./data/sled:/app/data/sled

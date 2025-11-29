@@ -13,9 +13,9 @@ TODO:
     * [x] admin panel
     * [ ] visibility
     * [ ] 404 & error detect
-    * [ ] database
-        * [ ] orm support
-        * [ ] sled optimization
+    * [x] database
+        * [x] orm support
+        * [x] sled optimization
 * [ ] publisher
     * [x] architecture
     * [ ] multiple settings
@@ -31,7 +31,7 @@ TODO:
     * [ ] better theme support
 * [x] cicd
     * [x] docker
-    * [ ] docker-compose
+    * [x] docker-compose
     
 misc:
 
