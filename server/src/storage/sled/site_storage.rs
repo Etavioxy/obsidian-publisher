@@ -2,17 +2,17 @@ use crate::{error::AppError, models::Site};
 use sled::Db;
 use std::path::PathBuf;
 use uuid::Uuid;
-use crate::storage::sled::DB_USER_SITES;
+use super::dbs::*;
 
 #[derive(Clone)]
 pub struct SiteStorage {
     db: Db,
     user_sites_db: Db,
-    files_path: PathBuf,
+    site_files_path: PathBuf,
 }
 
 impl SiteStorage {
-    pub async fn new(db_path: PathBuf, files_path: PathBuf) -> Result<Self, AppError> {
+    pub async fn new(db_path: &PathBuf, site_static_files_path: PathBuf) -> Result<Self, AppError> {
         // sled is synchronous; opening here is cheap and acceptable in async fn
         // derive user_sites db path sibling to the sites db (compute before moving db_path into sled::open)
         let user_sites_path = if let Some(parent) = db_path.parent() {
@@ -22,8 +22,8 @@ impl SiteStorage {
         };
         let db = sled::open(&db_path)?;
         let user_sites_db = sled::open(user_sites_path)?;
-        std::fs::create_dir_all(&files_path)?;
-        Ok(Self { db, user_sites_db, files_path })
+        std::fs::create_dir_all(&site_static_files_path)?;
+        Ok(Self { db, user_sites_db, site_files_path: site_static_files_path })
     }
     pub async fn create(&self, site: Site) -> Result<(), AppError> {
         let key = site.id.as_bytes();
@@ -72,7 +72,7 @@ impl SiteStorage {
         self.db.remove(key)?;
         
         // 删除站点文件目录
-        let site_dir = self.files_path.join(id.to_string());
+        let site_dir = self.site_files_path.join(id.to_string());
         if site_dir.exists() {
             std::fs::remove_dir_all(site_dir)?;
         }
@@ -113,10 +113,10 @@ impl SiteStorage {
     }
 
     pub fn get_site_files_path(&self, site_id: Uuid) -> PathBuf {
-        self.files_path.join(site_id.to_string())
+        self.site_files_path.join(site_id.to_string())
     }
 
     pub fn get_site_files_path_str(&self, site_id: &str) -> PathBuf {
-        self.files_path.join(site_id)
+        self.site_files_path.join(site_id)
     }
 }

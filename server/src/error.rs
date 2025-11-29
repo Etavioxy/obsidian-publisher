@@ -11,6 +11,9 @@ pub enum AppError {
     #[error("Database error: {0}")]
     Database(String),
     
+    #[error("Configuration error: {0}")]
+    Config(String),
+    
     #[error("JWT error: {0}")]
     Jwt(#[from] jsonwebtoken::errors::Error),
     
@@ -55,6 +58,7 @@ impl IntoResponse for AppError {
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
             AppError::UserDeletionBlocked => (StatusCode::BAD_REQUEST, "User has active sites, cannot delete account"),
             AppError::InvalidInput(_) => (StatusCode::BAD_REQUEST, "Invalid input"),
+            AppError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Configuration error"),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
         };
 

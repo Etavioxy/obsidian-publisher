@@ -2,6 +2,7 @@ use crate::{error::AppError, models::User};
 use sled::Db;
 use std::path::PathBuf;
 use uuid::Uuid;
+use super::dbs::*;
 
 // 现在会在一个db里同时存储(id, 用户)和(username: name, 用户id)两种键值对，之后考虑优化
 
@@ -11,9 +12,9 @@ pub struct UserStorage {
 }
 
 impl UserStorage {
-    pub async fn new(path: PathBuf) -> Result<Self, AppError> {
+    pub async fn new(path: &PathBuf) -> Result<Self, AppError> {
         // sled is synchronous; opening here is cheap and acceptable in async fn
-        let db = sled::open(path)?;
+        let db = sled::open(path.join(DB_USERS))?;
         Ok(Self { db })
     }
 

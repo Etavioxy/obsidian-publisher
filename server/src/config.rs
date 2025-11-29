@@ -84,20 +84,23 @@ impl Validate for StorageConfig {
                     i, s.backend
                 ));
             }
+            // if backend is file-based, ensure path is present
+            if matches!(s.backend.as_ref(), "sled" | "sqlite") && s.path.is_none() {
+                warns.push(format!(
+                    "storage.storages[{}] with backend '{}' requires a 'path' field",
+                    i, s.backend
+                ));
+            }
         }
         warns
     }
 }
 
 impl StorageConfig {
-    /// 获取第一个存储路径作为默认路径（如果有）
-    pub fn db_path(&self, backend: &str) -> Option<&PathBuf> {
-        self.db.iter().find_map(|entry| {
-            if entry.backend == backend {
-                entry.path.as_ref()
-            } else {
-                None
-            }
+    /// 获取第一个匹配指定后端的存储路径（如果有）
+    pub fn first_db_with_backend(&self, backends: &[&str]) -> Option<&StorageEntry> {
+        self.db.iter().find(|entry| {
+            backends.contains(&entry.backend.as_str())
         })
     }
 }
