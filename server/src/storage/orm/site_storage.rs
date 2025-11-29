@@ -7,42 +7,13 @@ use crate::storage::orm::entities::sites as sites_entity;
 #[derive(Clone)]
 pub struct SiteStorage {
     conn: DatabaseConnection,
-    files_path: PathBuf,
+    site_files_path: PathBuf,
 }
 
 impl SiteStorage {
-    pub async fn new(db_path: PathBuf, files_path: PathBuf) -> Result<Self, AppError> {
-        let database_url = std::env::var("PG_DATABASE_URL").unwrap_or_else(|_| {
-            if let Some(parent) = db_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            let p = db_path
-                //.canonicalize()
-                //.unwrap_or(db_path.clone())
-                .to_string_lossy()
-                .replace('\\', "/");
-            // plain path
-            format!("sqlite:{}", p)
-        });
-
-        // Debug: ensure parent exists and try to create the DB file so sqlite can open it
-        if let Some(parent) = db_path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                eprintln!("Failed to create parent dir {}: {}", parent.display(), e);
-            }
-        }
-        match std::fs::OpenOptions::new().create(true).write(true).open(&db_path) {
-            Ok(_) => {
-                eprintln!("Touched DB file: {}", db_path.display());
-            }
-            Err(e) => {
-                eprintln!("Could not create/touch DB file {}: {}", db_path.display(), e);
-            }
-        }
-
-        eprintln!("Connecting to DB; db_path='{}' database_url='{}'", db_path.display(), database_url);
-
-        let conn = Database::connect(&database_url).await.map_err(|e| AppError::Database(e.to_string()))?;
+    pub async fn new(database_url: &str, site_static_files_path: PathBuf) -> Result<Self, AppError> {
+        eprintln!("Connecting to DB; database_url='{}'", database_url);
+        let conn = Database::connect(database_url).await.map_err(|e| AppError::Database(e.to_string()))?;
 
         // Create table if not exists
         if database_url.starts_with("sqlite") {
@@ -67,9 +38,9 @@ impl SiteStorage {
             conn.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Postgres, sql.to_owned())).await.map_err(|e| AppError::Database(e.to_string()))?;
         }
 
-        std::fs::create_dir_all(&files_path)?;
+        std::fs::create_dir_all(&site_static_files_path)?;
 
-        Ok(Self { conn, files_path })
+        Ok(Self { conn, site_files_path: site_static_files_path })
     }
 
     pub async fn create(&self, site: Site) -> Result<(), AppError> {
@@ -118,7 +89,7 @@ impl SiteStorage {
         sites_entity::Entity::delete_by_id(key.clone()).exec(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))?;
 
         // delete files
-        let site_dir = self.files_path.join(key);
+        let site_dir = self.site_files_path.join(key);
         if site_dir.exists() {
             std::fs::remove_dir_all(site_dir)?;
         }
@@ -147,10 +118,10 @@ impl SiteStorage {
     }
 
     pub fn get_site_files_path(&self, site_id: Uuid) -> PathBuf {
-        self.files_path.join(site_id.to_string())
+        self.site_files_path.join(site_id.to_string())
     }
 
     pub fn get_site_files_path_str(&self, site_id: &str) -> PathBuf {
-        self.files_path.join(site_id)
+        self.site_files_path.join(site_id)
     }
 }

@@ -1,6 +1,5 @@
 use crate::{error::AppError, models::User};
 use sea_orm::{Database, DatabaseConnection, EntityTrait, Set, ConnectionTrait, QueryFilter, ColumnTrait, QueryOrder, PaginatorTrait};
-use std::path::PathBuf;
 use uuid::Uuid;
 use crate::storage::orm::entities::users as users_entity;
 
@@ -10,35 +9,9 @@ pub struct UserStorage {
 }
 
 impl UserStorage {
-    pub async fn new(db_path: PathBuf) -> Result<Self, AppError> {
-        let database_url = std::env::var("PG_DATABASE_URL").unwrap_or_else(|_| {
-            if let Some(parent) = db_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            // For sqlite file paths ensure an absolute-style URL: sqlite:///C:/path/to/db or sqlite:////unix/path
-            let p = db_path
-                //.canonicalize()
-                //.unwrap_or(db_path.clone())
-                .to_string_lossy()
-                .replace('\\', "/");
-            // plain path
-            format!("sqlite:{}", p)
-        });
-
-        // Ensure parent directory exists and try to touch the DB file so sqlite can open it
-        if let Some(parent) = db_path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                eprintln!("Failed to create parent dir {}: {}", parent.display(), e);
-            }
-        }
-        match std::fs::OpenOptions::new().create(true).write(true).open(&db_path) {
-            Ok(_) => eprintln!("Touched DB file: {}", db_path.display()),
-            Err(e) => eprintln!("Could not create/touch DB file {}: {}", db_path.display(), e),
-        }
-
-        eprintln!("Connecting to DB; db_path='{}' database_url='{}'", db_path.display(), database_url);
-
-        let conn = Database::connect(&database_url).await.map_err(|e| AppError::Database(e.to_string()))?;
+    pub async fn new(database_url: &str) -> Result<Self, AppError> {
+        eprintln!("Connecting to DB; database_url='{}'", database_url);
+        let conn = Database::connect(database_url).await.map_err(|e| AppError::Database(e.to_string()))?;
 
         // Create table if not exists (simple portable SQL)
         if database_url.starts_with("sqlite") {
