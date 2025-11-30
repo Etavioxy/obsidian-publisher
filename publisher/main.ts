@@ -4,12 +4,13 @@
  */
 
 import { App, Plugin, Notice, TFile } from 'obsidian';
-import { PublisherSettings, PublishHistoryEntry, UploadResult } from './src/types';
+import { PublisherSettings, PublishHistoryEntry, UploadResult, PublishProfile } from './src/types';
 import { DEFAULT_SETTINGS, SettingsValidator, PublishHistory } from './src/settings';
 import { CommandExecutor } from './src/commands';
 import { StatusBarManager } from './src/ui/StatusBar';
 import { PublishModal, BuildModal } from './src/ui/PublishModal';
 import { PublisherSettingTab } from './src/ui/SettingTab';
+import path from 'path';
 
 /**
  * Main plugin class
@@ -169,8 +170,10 @@ export default class ObsidianPublisherPlugin extends Plugin {
 			return;
 		}
 		
-		new PublishModal(this.app, this.settings, (result) => {
-			this.onPublishComplete(result);
+		const activeProfile = this.getActiveProfile();
+		
+		new PublishModal(this.app, this.settings, activeProfile, (result, profile) => {
+			this.onPublishComplete(result, profile);
 		}).open();
 	}
 	
@@ -183,20 +186,32 @@ export default class ObsidianPublisherPlugin extends Plugin {
 			return;
 		}
 		
+		// Get active profile
+		const activeProfile = this.getActiveProfile();
+		if (!activeProfile) {
+			new Notice('Please create and select a publish profile in settings');
+			return;
+		}
+		
 		// Update status bar
-		this.statusBarManager?.setStatus('building', 'Publishing...');
+		this.statusBarManager?.setStatus('building', `Publishing ${activeProfile.name}...`);
 		
-		new Notice('Starting publish...');
+		new Notice(`Starting publish for "${activeProfile.name}"...`);
 		
-		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
-		const basePath = (this.app.vault.adapter as any).basePath;
+		const vaultBasePath = (this.app.vault.adapter as any).basePath || '.';
+		// Determine source path based on profile's sourceDir
+		const sourcePath = activeProfile.sourceDir === '.' 
+			? vaultBasePath 
+			: path.join(vaultBasePath, activeProfile.sourceDir);
+		
 		const result = await CommandExecutor.publish({
-			vaultPath: vaultPath,
+			vaultPath: sourcePath,
 			serverUrl: this.settings.serverUrl,
 			token: this.settings.authToken,
+			siteName: activeProfile.siteName,
 			excludePatterns: this.settings.excludePatterns,
 			keepTemp: this.settings.keepTempFiles,
-			basePath: basePath
+			basePath: this.settings.basePath || vaultBasePath
 		}, {
 			onProgress: (stage, progress) => {
 				this.statusBarManager?.showProgress(stage, progress);
@@ -205,8 +220,8 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		
 		if (result.success) {
 			this.statusBarManager?.setStatus('success', 'Published!');
-			new Notice(`✅ Published successfully! URL: http://${result.data.url}`, 10000);
-			this.onPublishComplete(result.data);
+			new Notice(`✅ Published "${activeProfile.name}" successfully!\nURL: http://${result.data.url}`, 10000);
+			this.onPublishComplete(result.data, activeProfile);
 			
 			// Reset status after a delay
 			setTimeout(() => {
@@ -224,9 +239,19 @@ export default class ObsidianPublisherPlugin extends Plugin {
 	}
 	
 	/**
+	 * Get the active publish profile
+	 */
+	getActiveProfile(): PublishProfile | null {
+		if (!this.settings.activeProfileId) {
+			return null;
+		}
+		return this.settings.profiles.find(p => p.id === this.settings.activeProfileId && p.enabled) || null;
+	}
+	
+	/**
 	 * Handle publish completion
 	 */
-	private onPublishComplete(result: UploadResult): void {
+	private onPublishComplete(result: UploadResult, profile?: PublishProfile): void {
 		// Add to history
 		const historyEntry: PublishHistoryEntry = {
 			timestamp: Date.now(),
@@ -236,6 +261,16 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		};
 		
 		this.publishHistory.addEntry(historyEntry);
+		
+		// Update profile's last published info
+		if (profile) {
+			const profileIndex = this.settings.profiles.findIndex(p => p.id === profile.id);
+			if (profileIndex !== -1) {
+				this.settings.profiles[profileIndex].lastPublished = Date.now();
+				this.settings.profiles[profileIndex].lastPublishUrl = result.url;
+			}
+		}
+		
 		this.saveSettings();
 	}
 	

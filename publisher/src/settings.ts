@@ -2,7 +2,28 @@
  * Settings management module
  */
 
-import { PublisherSettings, PublishHistoryEntry } from './types';
+import { PublisherSettings, PublishHistoryEntry, PublishProfile } from './types';
+
+/**
+ * Generate a unique profile ID
+ */
+export function generateProfileId(): string {
+	return `profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Create a new default profile
+ */
+export function createDefaultProfile(name: string = 'Default', siteName: string = ''): PublishProfile {
+	return {
+		id: generateProfileId(),
+		name,
+		siteName: siteName || name.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
+		sourceDir: '.',
+		enabled: true,
+		description: '',
+	};
+}
 
 /**
  * Default plugin settings
@@ -23,6 +44,10 @@ export const DEFAULT_SETTINGS: PublisherSettings = {
 		'node_modules/**',
 		'.git/**'
 	],
+	
+	// Publish profiles
+	profiles: [],
+	activeProfileId: null,
 	
 	// Advanced options
 	keepTempFiles: false,

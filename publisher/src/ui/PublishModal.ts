@@ -4,14 +4,16 @@
 
 import { App, Modal, Notice, ButtonComponent, TextComponent } from 'obsidian';
 import { CommandExecutor } from '../commands';
-import { PublisherSettings, CommandContext, UploadResult } from '../types';
+import { PublisherSettings, CommandContext, UploadResult, PublishProfile } from '../types';
+import path from 'path';
 
 /**
  * Publish modal for interactive publishing
  */
 export class PublishModal extends Modal {
 	private settings: PublisherSettings;
-	private onPublishComplete?: (result: UploadResult) => void;
+	private activeProfile: PublishProfile | null;
+	private onPublishComplete?: (result: UploadResult, profile?: PublishProfile) => void;
 	
 	private logContainer: HTMLElement;
 	private progressBar: HTMLElement;
@@ -27,10 +29,12 @@ export class PublishModal extends Modal {
 	constructor(
 		app: App, 
 		settings: PublisherSettings,
-		onPublishComplete?: (result: UploadResult) => void
+		activeProfile: PublishProfile | null,
+		onPublishComplete?: (result: UploadResult, profile?: PublishProfile) => void
 	) {
 		super(app);
 		this.settings = settings;
+		this.activeProfile = activeProfile;
 		this.onPublishComplete = onPublishComplete;
 	}
 	
@@ -42,6 +46,20 @@ export class PublishModal extends Modal {
 		// Title
 		contentEl.createEl('h2', { text: 'Publish to Server' });
 		
+		// Check for active profile
+		if (!this.activeProfile) {
+			const warning = contentEl.createDiv({ cls: 'obs-publisher-warning' });
+			warning.createEl('p', { 
+				text: '⚠️ No active profile selected. Please create and select a profile in settings.',
+				cls: 'obs-publisher-warning-text'
+			});
+			
+			new ButtonComponent(contentEl)
+				.setButtonText('Close')
+				.onClick(() => this.close());
+			return;
+		}
+		
 		// Server info
 		const infoContainer = contentEl.createDiv({ cls: 'obs-publisher-info' });
 		infoContainer.createEl('p', { 
@@ -49,8 +67,16 @@ export class PublishModal extends Modal {
 			cls: 'obs-publisher-server-url'
 		});
 		infoContainer.createEl('p', { 
-			text: `Vault: ${this.settings.vaultPath || this.app.vault.getName()}`,
-			cls: 'obs-publisher-vault-path'
+			text: `Profile: ${this.activeProfile.name}`,
+			cls: 'obs-publisher-profile-name'
+		});
+		infoContainer.createEl('p', { 
+			text: `Site Name: ${this.activeProfile.siteName}`,
+			cls: 'obs-publisher-site-name'
+		});
+		infoContainer.createEl('p', { 
+			text: `Source: ${this.activeProfile.sourceDir}`,
+			cls: 'obs-publisher-source-dir'
 		});
 		
 		// Progress section
@@ -101,7 +127,7 @@ export class PublishModal extends Modal {
 	 * Start publish process
 	 */
 	private async startPublish(): Promise<void> {
-		if (this.isPublishing) {
+		if (this.isPublishing || !this.activeProfile) {
 			return;
 		}
 
@@ -135,13 +161,18 @@ export class PublishModal extends Modal {
 			}
 		};
 
-		// Execute publish
-		const vaultPath = this.settings.vaultPath || (this.app.vault.adapter as any).basePath || '.';
-		const basePath = this.settings.basePath || (this.app.vault.adapter as any).basePath;
+		// Determine source path based on profile
+		const vaultBasePath = (this.app.vault.adapter as any).basePath || '.';
+		const sourcePath = this.activeProfile.sourceDir === '.' 
+			? vaultBasePath 
+			: path.join(vaultBasePath, this.activeProfile.sourceDir);
+		const basePath = this.settings.basePath || vaultBasePath;
+		
 		const result = await CommandExecutor.publish({
-			vaultPath: vaultPath,
+			vaultPath: sourcePath,
 			serverUrl: this.settings.serverUrl,
 			token: this.settings.authToken,
+			siteName: this.activeProfile.siteName,
 			excludePatterns: this.settings.excludePatterns,
 			keepTemp: this.settings.keepTempFiles,
 			basePath: basePath
@@ -158,7 +189,7 @@ export class PublishModal extends Modal {
 
 			// Call completion callback
 			if (this.onPublishComplete && result.data) {
-				this.onPublishComplete(result.data);
+				this.onPublishComplete(result.data, this.activeProfile || undefined);
 			}
 
 			// Auto-close after a delay

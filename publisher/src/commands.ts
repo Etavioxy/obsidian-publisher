@@ -113,6 +113,7 @@ export class CommandExecutor {
 			const result: UploadResult = await uploadArchive(options.archivePath, {
 				serverUrl: options.serverUrl,
 				token: options.token,
+				siteName: options.siteName,
 				metaPath: options.metaPath,
 				customLogger: adapterLogger,
 				customLoggerKey: 'obsidian-upload'

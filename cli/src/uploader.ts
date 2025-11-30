@@ -26,7 +26,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   const originalLoggerKey = loggerManager.getCurrent();
   const switchedLoggerKey = loggerManager.useCustom(options.customLogger, options.customLoggerKey);
 
-  const { serverUrl, token: tokenFromOption, metaPath } = options;
+  const { serverUrl, token: tokenFromOption, siteName, metaPath } = options;
   
   log.progress(`📤 Uploading to ${serverUrl}...`, 0, options.progressContext);
   
@@ -53,6 +53,11 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
     throw new Error('Missing site uuid: cannot find site-meta.json. If you are using the `upload` command, provide --meta <path_to_site-meta.json>');
   }
 
+  // siteName is required for proper storage on server
+  if (!siteName) {
+    throw new Error('Missing siteName: a site name is required for publishing');
+  }
+
   // If no token provided, prompt for credentials and request one from the server
   let token = tokenFromOption;
   if (!token) {
@@ -77,6 +82,7 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   const formData = new FormData();
   const blob = new Blob([new Uint8Array(fileBuffer)]);
   formData.append('uuid', siteUuid);
+  formData.append('siteName', siteName);
   formData.append('site', blob, fileName);
   
   log.debug(`🔐 Token: ${token}`);

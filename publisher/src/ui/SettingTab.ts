@@ -2,9 +2,10 @@
  * Settings tab for Obsidian Publisher
  */
 
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent } from 'obsidian';
 import type ObsidianPublisherPlugin from '../../main';
-import { SettingsValidator } from '../settings';
+import { SettingsValidator, createDefaultProfile } from '../settings';
+import type { PublishProfile } from '../types';
 
 /**
  * Settings tab UI
@@ -63,6 +64,26 @@ export class PublisherSettingTab extends PluginSettingTab {
 				.setButtonText('Test')
 				.onClick(async () => {
 					await this.testConnection();
+				}));
+		
+		// ===== Publish Profiles =====
+		containerEl.createEl('h2', { text: 'Publish Profiles' });
+		containerEl.createEl('p', { 
+			text: 'Manage multiple publishing configurations. Each profile can publish a different folder to a unique site name.',
+			cls: 'setting-item-description'
+		});
+		
+		const profilesContainer = containerEl.createDiv({ cls: 'obs-publisher-profiles' });
+		this.renderPublishProfiles(profilesContainer);
+		
+		new Setting(containerEl)
+			.setName('Add New Profile')
+			.setDesc('Create a new publishing profile')
+			.addButton(button => button
+				.setButtonText('Add Profile')
+				.setCta()
+				.onClick(() => {
+					this.openProfileEditor(null, profilesContainer);
 				}));
 		
 		// ===== Build Configuration =====
@@ -366,5 +387,251 @@ export class PublisherSettingTab extends PluginSettingTab {
 			const errors = validation.errors.join('\n');
 			new Notice(`❌ Settings validation failed:\n${errors}`, 10000);
 		}
+	}
+
+	/**
+	 * Render publish profiles list
+	 */
+	private renderPublishProfiles(container: HTMLElement): void {
+		container.empty();
+		
+		const profiles = this.plugin.settings.profiles;
+		
+		if (profiles.length === 0) {
+			container.createEl('p', { 
+				text: 'No profiles configured. Click "Add Profile" to create one.',
+				cls: 'obs-publisher-empty-list'
+			});
+			return;
+		}
+		
+		const list = container.createDiv({ cls: 'obs-publisher-profile-list' });
+		
+		for (const profile of profiles) {
+			const isActive = profile.id === this.plugin.settings.activeProfileId;
+			const item = list.createDiv({ 
+				cls: `obs-publisher-profile-item ${isActive ? 'active' : ''} ${!profile.enabled ? 'disabled' : ''}`
+			});
+			
+			// Profile header row
+			const headerRow = item.createDiv({ cls: 'obs-publisher-profile-header' });
+			
+			// Status indicator and name
+			const nameSection = headerRow.createDiv({ cls: 'obs-publisher-profile-name-section' });
+			const statusIcon = profile.enabled ? '●' : '○';
+			const activeIcon = isActive ? ' ★' : '';
+			nameSection.createSpan({ 
+				text: `${statusIcon} ${profile.name}${activeIcon}`,
+				cls: 'obs-publisher-profile-name'
+			});
+			
+			// Site name badge
+			nameSection.createSpan({
+				text: profile.siteName,
+				cls: 'obs-publisher-profile-sitename'
+			});
+			
+			// Actions
+			const actionsSection = headerRow.createDiv({ cls: 'obs-publisher-profile-actions' });
+			
+			// Set Active button
+			if (!isActive && profile.enabled) {
+				const activateBtn = actionsSection.createEl('button', { 
+					text: 'Set Active',
+					cls: 'obs-publisher-btn obs-publisher-btn-small'
+				});
+				activateBtn.onclick = async () => {
+					this.plugin.settings.activeProfileId = profile.id;
+					await this.plugin.saveSettings();
+					this.renderPublishProfiles(container);
+					new Notice(`Profile "${profile.name}" is now active`);
+				};
+			}
+			
+			// Edit button
+			const editBtn = actionsSection.createEl('button', { 
+				text: 'Edit',
+				cls: 'obs-publisher-btn obs-publisher-btn-small'
+			});
+			editBtn.onclick = () => {
+				this.openProfileEditor(profile, container);
+			};
+			
+			// Delete button
+			const deleteBtn = actionsSection.createEl('button', { 
+				text: '×',
+				cls: 'obs-publisher-btn obs-publisher-btn-small obs-publisher-btn-danger'
+			});
+			deleteBtn.onclick = async () => {
+				if (confirm(`Delete profile "${profile.name}"?`)) {
+					this.plugin.settings.profiles = this.plugin.settings.profiles.filter(p => p.id !== profile.id);
+					if (this.plugin.settings.activeProfileId === profile.id) {
+						this.plugin.settings.activeProfileId = this.plugin.settings.profiles[0]?.id || null;
+					}
+					await this.plugin.saveSettings();
+					this.renderPublishProfiles(container);
+					new Notice('Profile deleted');
+				}
+			};
+			
+			// Details row
+			const detailsRow = item.createDiv({ cls: 'obs-publisher-profile-details' });
+			detailsRow.createSpan({ 
+				text: `📁 ${profile.sourceDir}`,
+				cls: 'obs-publisher-profile-detail'
+			});
+			if (profile.lastPublished) {
+				const date = new Date(profile.lastPublished).toLocaleString();
+				detailsRow.createSpan({ 
+					text: `🕐 ${date}`,
+					cls: 'obs-publisher-profile-detail'
+				});
+			}
+			if (profile.description) {
+				detailsRow.createSpan({ 
+					text: profile.description,
+					cls: 'obs-publisher-profile-description'
+				});
+			}
+		}
+	}
+
+	/**
+	 * Open profile editor modal
+	 */
+	private openProfileEditor(profile: PublishProfile | null, container: HTMLElement): void {
+		const modal = new ProfileEditorModal(
+			this.app, 
+			profile, 
+			async (savedProfile) => {
+				if (profile) {
+					// Update existing profile
+					const index = this.plugin.settings.profiles.findIndex(p => p.id === profile.id);
+					if (index !== -1) {
+						this.plugin.settings.profiles[index] = savedProfile;
+					}
+				} else {
+					// Add new profile
+					this.plugin.settings.profiles.push(savedProfile);
+					// If first profile, set as active
+					if (this.plugin.settings.profiles.length === 1) {
+						this.plugin.settings.activeProfileId = savedProfile.id;
+					}
+				}
+				await this.plugin.saveSettings();
+				this.renderPublishProfiles(container);
+				new Notice(profile ? 'Profile updated' : 'Profile created');
+			}
+		);
+		modal.open();
+	}
+}
+
+/**
+ * Modal for editing a publish profile
+ */
+class ProfileEditorModal extends Modal {
+	private profile: PublishProfile;
+	private isNew: boolean;
+	private onSave: (profile: PublishProfile) => void;
+
+	constructor(app: App, profile: PublishProfile | null, onSave: (profile: PublishProfile) => void) {
+		super(app);
+		this.isNew = !profile;
+		this.profile = profile ? { ...profile } : createDefaultProfile('New Profile');
+		this.onSave = onSave;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		
+		contentEl.createEl('h2', { text: this.isNew ? 'Create New Profile' : 'Edit Profile' });
+		
+		// Profile Name
+		new Setting(contentEl)
+			.setName('Profile Name')
+			.setDesc('Display name for this profile')
+			.addText(text => text
+				.setPlaceholder('My Site')
+				.setValue(this.profile.name)
+				.onChange(value => {
+					this.profile.name = value;
+				}));
+		
+		// Site Name
+		new Setting(contentEl)
+			.setName('Site Name')
+			.setDesc('URL-safe name used in the site path (e.g., "my-blog" → /sites/my-blog/)')
+			.addText(text => text
+				.setPlaceholder('my-blog')
+				.setValue(this.profile.siteName)
+				.onChange(value => {
+					// Auto-sanitize to URL-safe characters
+					this.profile.siteName = value.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+				}));
+		
+		// Source Directory
+		new Setting(contentEl)
+			.setName('Source Directory')
+			.setDesc('Path to the folder to publish (relative to vault root, use "." for entire vault)')
+			.addText(text => text
+				.setPlaceholder('.')
+				.setValue(this.profile.sourceDir)
+				.onChange(value => {
+					this.profile.sourceDir = value || '.';
+				}));
+		
+		// Enabled
+		new Setting(contentEl)
+			.setName('Enabled')
+			.setDesc('Whether this profile is available for publishing')
+			.addToggle(toggle => toggle
+				.setValue(this.profile.enabled)
+				.onChange(value => {
+					this.profile.enabled = value;
+				}));
+		
+		// Description
+		new Setting(contentEl)
+			.setName('Description')
+			.setDesc('Optional description for this profile')
+			.addTextArea(text => text
+				.setPlaceholder('Optional notes about this profile...')
+				.setValue(this.profile.description || '')
+				.onChange(value => {
+					this.profile.description = value;
+				}));
+		
+		// Buttons
+		const buttonRow = contentEl.createDiv({ cls: 'obs-publisher-modal-buttons' });
+		
+		const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+		cancelBtn.onclick = () => this.close();
+		
+		const saveBtn = buttonRow.createEl('button', { text: 'Save', cls: 'mod-cta' });
+		saveBtn.onclick = () => {
+			// Validate
+			if (!this.profile.name.trim()) {
+				new Notice('Profile name is required');
+				return;
+			}
+			if (!this.profile.siteName.trim()) {
+				new Notice('Site name is required');
+				return;
+			}
+			if (!/^[a-z0-9-_]+$/.test(this.profile.siteName)) {
+				new Notice('Site name can only contain lowercase letters, numbers, hyphens, and underscores');
+				return;
+			}
+			
+			this.onSave(this.profile);
+			this.close();
+		};
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
 	}
 }

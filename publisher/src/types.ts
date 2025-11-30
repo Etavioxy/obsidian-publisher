@@ -3,6 +3,28 @@
  */
 
 /**
+ * Publish profile - a saved configuration for publishing a specific site
+ */
+export interface PublishProfile {
+	/** Unique identifier for this profile */
+	id: string;
+	/** Display name for this profile */
+	name: string;
+	/** Site name used for URL path (must be unique per user on server) */
+	siteName: string;
+	/** Path to source directory within vault (relative to vault root) */
+	sourceDir: string;
+	/** Whether this profile is visible/enabled */
+	enabled: boolean;
+	/** Optional description */
+	description?: string;
+	/** Last successful publish timestamp */
+	lastPublished?: number;
+	/** Last publish result URL */
+	lastPublishUrl?: string;
+}
+
+/**
  * Plugin settings interface
  */
 export interface PublisherSettings {
@@ -16,6 +38,10 @@ export interface PublisherSettings {
 	outputDir: string;
 	srcDir: string;
 	excludePatterns: string[];
+	
+	// Publish profiles
+	profiles: PublishProfile[];
+	activeProfileId: string | null;
 	
 	// Advanced options
 	keepTempFiles: boolean;
@@ -56,6 +82,8 @@ export interface UploadOptions {
 	archivePath: string;
 	serverUrl: string;
 	token: string;
+	/** Site name for the published site */
+	siteName: string;
 	metaPath?: string;
 }
 
@@ -66,6 +94,8 @@ export interface PublishOptions {
 	vaultPath: string;
 	serverUrl: string;
 	token: string;
+	/** Site name for the published site (used in URL path) */
+	siteName: string;
 	excludePatterns?: string[];
 	keepTemp?: boolean;
 	/** Optional base path for resolving relative output/temp paths */
