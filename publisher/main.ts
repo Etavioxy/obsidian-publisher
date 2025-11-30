@@ -172,9 +172,19 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		
 		const activeProfile = this.getActiveProfile();
 		
-		new PublishModal(this.app, this.settings, activeProfile, (result, profile) => {
-			this.onPublishComplete(result, profile);
-		}).open();
+		new PublishModal(
+			this.app, 
+			this.settings, 
+			activeProfile, 
+			(result, profile) => {
+				this.onPublishComplete(result, profile);
+			},
+			async (profileId) => {
+				// Update active profile when changed in modal
+				this.settings.activeProfileId = profileId;
+				await this.saveSettings();
+			}
+		).open();
 	}
 	
 	/**

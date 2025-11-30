@@ -2,7 +2,7 @@
  * Publish modal - Interactive UI for publishing operations
  */
 
-import { App, Modal, Notice, ButtonComponent, TextComponent } from 'obsidian';
+import { App, Modal, Notice, ButtonComponent, TextComponent, DropdownComponent } from 'obsidian';
 import { CommandExecutor } from '../commands';
 import { PublisherSettings, CommandContext, UploadResult, PublishProfile } from '../types';
 import path from 'path';
@@ -14,7 +14,9 @@ export class PublishModal extends Modal {
 	private settings: PublisherSettings;
 	private activeProfile: PublishProfile | null;
 	private onPublishComplete?: (result: UploadResult, profile?: PublishProfile) => void;
+	private onProfileChanged?: (profileId: string) => void;
 	
+	private profileInfoContainer: HTMLElement;
 	private logContainer: HTMLElement;
 	private progressBar: HTMLElement;
 	private progressText: HTMLElement;
@@ -30,12 +32,14 @@ export class PublishModal extends Modal {
 		app: App, 
 		settings: PublisherSettings,
 		activeProfile: PublishProfile | null,
-		onPublishComplete?: (result: UploadResult, profile?: PublishProfile) => void
+		onPublishComplete?: (result: UploadResult, profile?: PublishProfile) => void,
+		onProfileChanged?: (profileId: string) => void
 	) {
 		super(app);
 		this.settings = settings;
 		this.activeProfile = activeProfile;
 		this.onPublishComplete = onPublishComplete;
+		this.onProfileChanged = onProfileChanged;
 	}
 	
 	onOpen(): void {
@@ -46,11 +50,14 @@ export class PublishModal extends Modal {
 		// Title
 		contentEl.createEl('h2', { text: 'Publish to Server' });
 		
-		// Check for active profile
-		if (!this.activeProfile) {
+		// Get enabled profiles
+		const enabledProfiles = this.settings.profiles.filter(p => p.enabled);
+		
+		// Check if there are any profiles
+		if (enabledProfiles.length === 0) {
 			const warning = contentEl.createDiv({ cls: 'obs-publisher-warning' });
 			warning.createEl('p', { 
-				text: '⚠️ No active profile selected. Please create and select a profile in settings.',
+				text: '⚠️ No profiles available. Please create a profile in settings.',
 				cls: 'obs-publisher-warning-text'
 			});
 			
@@ -60,24 +67,49 @@ export class PublishModal extends Modal {
 			return;
 		}
 		
+		// Profile selector
+		const selectorContainer = contentEl.createDiv({ cls: 'obs-publisher-profile-selector' });
+		selectorContainer.createEl('label', { 
+			text: 'Select Profile:',
+			cls: 'obs-publisher-selector-label'
+		});
+		
+		const dropdown = new DropdownComponent(selectorContainer);
+		for (const profile of enabledProfiles) {
+			dropdown.addOption(profile.id, profile.name);
+		}
+		
+		// Set current active profile
+		if (this.activeProfile) {
+			dropdown.setValue(this.activeProfile.id);
+		} else if (enabledProfiles.length > 0) {
+			// Default to first enabled profile
+			this.activeProfile = enabledProfiles[0];
+			dropdown.setValue(enabledProfiles[0].id);
+		}
+		
+		dropdown.onChange((value) => {
+			const selected = this.settings.profiles.find(p => p.id === value);
+			if (selected) {
+				this.activeProfile = selected;
+				this.updateProfileInfo();
+				// Notify parent about profile change
+				if (this.onProfileChanged) {
+					this.onProfileChanged(value);
+				}
+			}
+		});
+		
 		// Server info
 		const infoContainer = contentEl.createDiv({ cls: 'obs-publisher-info' });
 		infoContainer.createEl('p', { 
 			text: `Server: ${this.settings.serverUrl}`,
 			cls: 'obs-publisher-server-url'
 		});
-		infoContainer.createEl('p', { 
-			text: `Profile: ${this.activeProfile.name}`,
-			cls: 'obs-publisher-profile-name'
-		});
-		infoContainer.createEl('p', { 
-			text: `Site Name: ${this.activeProfile.siteName}`,
-			cls: 'obs-publisher-site-name'
-		});
-		infoContainer.createEl('p', { 
-			text: `Source: ${this.activeProfile.sourceDir}`,
-			cls: 'obs-publisher-source-dir'
-		});
+		
+		// Profile info (will be updated when selection changes)
+		this.profileInfoContainer = infoContainer.createDiv({ cls: 'obs-publisher-profile-info' });
+		this.updateProfileInfo();
 		
 		// Progress section
 		const progressContainer = contentEl.createDiv({ cls: 'obs-publisher-progress' });
@@ -241,6 +273,28 @@ export class PublishModal extends Modal {
 		});
 		node.style.left = `${progress}%`;
 		node.setAttribute('aria-label', `${progress}% - ${message}`);
+	}
+	
+	/**
+	 * Update profile info display
+	 */
+	private updateProfileInfo(): void {
+		if (!this.profileInfoContainer || !this.activeProfile) return;
+		
+		this.profileInfoContainer.empty();
+		
+		this.profileInfoContainer.createEl('p', { 
+			text: `Profile: ${this.activeProfile.name}`,
+			cls: 'obs-publisher-profile-name'
+		});
+		this.profileInfoContainer.createEl('p', { 
+			text: `Site Name: ${this.activeProfile.siteName}`,
+			cls: 'obs-publisher-site-name'
+		});
+		this.profileInfoContainer.createEl('p', { 
+			text: `Source: ${this.activeProfile.sourceDir}`,
+			cls: 'obs-publisher-source-dir'
+		});
 	}
 	
 	/**
