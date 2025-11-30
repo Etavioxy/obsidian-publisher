@@ -2,10 +2,42 @@
  * Settings tab for Obsidian Publisher
  */
 
-import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, FuzzySuggestModal, TFolder } from 'obsidian';
 import type ObsidianPublisherPlugin from '../../main';
 import { SettingsValidator, createDefaultProfile } from '../settings';
 import type { PublishProfile } from '../types';
+
+/**
+ * Folder suggestion modal using Obsidian's fuzzy search
+ */
+class FolderSuggestModal extends FuzzySuggestModal<TFolder | string> {
+	private onChoose: (folder: string) => void;
+
+	constructor(app: App, onChoose: (folder: string) => void) {
+		super(app);
+		this.onChoose = onChoose;
+		this.setPlaceholder('Type to search folders...');
+	}
+
+	getItems(): (TFolder | string)[] {
+		// Get all folders from vault
+		const folders = this.app.vault.getAllFolders(false);
+		// Add root option as special string
+		return ['.', ...folders];
+	}
+
+	getItemText(item: TFolder | string): string {
+		if (typeof item === 'string') {
+			return '. (Vault Root)';
+		}
+		return item.path;
+	}
+
+	onChooseItem(item: TFolder | string, evt: MouseEvent | KeyboardEvent): void {
+		const path = typeof item === 'string' ? item : item.path;
+		this.onChoose(path);
+	}
+}
 
 /**
  * Settings tab UI
@@ -572,14 +604,27 @@ class ProfileEditorModal extends Modal {
 				}));
 		
 		// Source Directory
+		let sourceDirText: TextComponent;
 		new Setting(contentEl)
 			.setName('Source Directory')
 			.setDesc('Path to the folder to publish (relative to vault root, use "." for entire vault)')
-			.addText(text => text
-				.setPlaceholder('.')
-				.setValue(this.profile.sourceDir)
-				.onChange(value => {
-					this.profile.sourceDir = value || '.';
+			.addText(text => {
+				sourceDirText = text;
+				text.setPlaceholder('.')
+					.setValue(this.profile.sourceDir)
+					.onChange(value => {
+						this.profile.sourceDir = value || '.';
+					});
+			})
+			.addButton(button => button
+				.setIcon('folder')
+				.setTooltip('Browse folders')
+				.onClick(() => {
+					const modal = new FolderSuggestModal(this.app, (folder) => {
+						this.profile.sourceDir = folder;
+						sourceDirText.setValue(folder);
+					});
+					modal.open();
 				}));
 		
 		// Enabled

@@ -192,6 +192,7 @@ export class CommandExecutor {
 			const result: UploadResult = await uploadArchive(tempArchive, {
 				serverUrl: options.serverUrl,
 				token: options.token,
+				siteName: options.siteName,
 				metaPath: `${tempBuildDir}/site-meta.json`,
 				customLogger: uploadAdapterLogger,
 				customLoggerKey: 'obsidian-publish-upload'
