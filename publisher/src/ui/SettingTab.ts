@@ -2,7 +2,7 @@
  * Settings tab for Obsidian Publisher
  */
 
-import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, FuzzySuggestModal, TFolder } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, FuzzySuggestModal, TFolder, Menu } from 'obsidian';
 import type ObsidianPublisherPlugin from '../../main';
 import { SettingsValidator, createDefaultProfile } from '../settings';
 import type { PublishProfile } from '../types';
@@ -64,8 +64,8 @@ export class PublisherSettingTab extends PluginSettingTab {
 		containerEl.createEl('h2', { text: 'Server Configuration' });
 		
 		new Setting(containerEl)
-			.setName('Server URL')
-			.setDesc('The URL of your publishing server')
+			.setName('Default Server URL')
+			.setDesc('The default URL of your publishing server (used when profile has no custom server)')
 			.addText(text => text
 				.setPlaceholder('http://localhost:8080')
 				.setValue(this.plugin.settings.serverUrl)
@@ -74,29 +74,15 @@ export class PublisherSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		
-		new Setting(containerEl)
-			.setName('Authentication Token')
-			.setDesc('Your authentication token for the publishing server')
-			.addText(text => {
-				text
-					.setPlaceholder('Enter your token')
-					.setValue(this.plugin.settings.authToken)
-					.onChange(async (value) => {
-						this.plugin.settings.authToken = value;
-						await this.plugin.saveSettings();
-					});
-				//text.inputEl.type = 'password';
-				return text;
-			});
+		// ===== Server Tokens =====
+		containerEl.createEl('h2', { text: 'Server Tokens' });
+		containerEl.createEl('p', { 
+			text: 'Manage authentication tokens for each server URL. Each server needs its own token.',
+			cls: 'setting-item-description'
+		});
 		
-		new Setting(containerEl)
-			.setName('Test Connection')
-			.setDesc('Test the connection to the publishing server')
-			.addButton(button => button
-				.setButtonText('Test')
-				.onClick(async () => {
-					await this.testConnection();
-				}));
+		const serverTokensContainer = containerEl.createDiv({ cls: 'obs-publisher-server-tokens' });
+		this.renderServerTokens(serverTokensContainer);
 		
 		// ===== Publish Profiles =====
 		containerEl.createEl('h2', { text: 'Publish Profiles' });
@@ -386,14 +372,22 @@ export class PublisherSettingTab extends PluginSettingTab {
 			return;
 		}
 		
+		const serverUrl = this.plugin.settings.serverUrl;
+		const token = this.plugin.settings.serverTokens[serverUrl] || '';
+		
+		if (!token) {
+			new Notice('❌ No token configured for default server. Please add a token in Server Tokens section.');
+			return;
+		}
+		
 		try {
 			new Notice('Testing connection...');
 			
 			// Simple ping test
-			const response = await fetch(`${this.plugin.settings.serverUrl}/auth/me`, {
+			const response = await fetch(`${serverUrl}/auth/me`, {
 				method: 'GET',
 				headers: {
-					'Authorization': `Bearer ${this.plugin.settings.authToken}`
+					'Authorization': `Bearer ${token}`
 				}
 			});
 			
@@ -422,6 +416,111 @@ export class PublisherSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * Render server tokens list
+	 */
+	private renderServerTokens(container: HTMLElement): void {
+		container.empty();
+		
+		// Collect all unique server URLs (including default server)
+		const allServerUrls = new Set<string>();
+		
+		// Always include the default server URL
+		if (this.plugin.settings.serverUrl) {
+			allServerUrls.add(this.plugin.settings.serverUrl);
+		}
+		
+		// Add custom server URLs from profiles
+		for (const profile of this.plugin.settings.profiles) {
+			if (profile.serverUrl) {
+				allServerUrls.add(profile.serverUrl);
+			}
+		}
+		
+		if (allServerUrls.size === 0) {
+			container.createEl('p', { 
+				text: 'No server URLs configured. Set a default server URL above.',
+				cls: 'obs-publisher-empty-list'
+			});
+			return;
+		}
+		
+		const list = container.createDiv({ cls: 'obs-publisher-token-list' });
+		
+		for (const serverUrl of allServerUrls) {
+			const token = this.plugin.settings.serverTokens[serverUrl] || '';
+			const hasToken = !!token;
+			const isDefault = serverUrl === this.plugin.settings.serverUrl;
+			
+			const item = list.createDiv({ 
+				cls: `obs-publisher-token-item ${hasToken ? '' : 'missing-token'}`
+			});
+			
+			// Server URL display
+			const urlRow = item.createDiv({ cls: 'obs-publisher-token-url' });
+			urlRow.createSpan({ 
+				text: hasToken ? '🔑' : '⚠️',
+				cls: 'obs-publisher-token-status'
+			});
+			urlRow.createSpan({ 
+				text: serverUrl + (isDefault ? ' (default)' : ''),
+				cls: 'obs-publisher-token-server'
+			});
+			
+			// Token input
+			new Setting(item)
+				.setName('')
+				.setDesc(hasToken ? 'Token configured' : 'Token required - publishing will fail without it')
+				.addText(text => {
+					text
+						.setPlaceholder('Enter token for this server')
+						.setValue(token)
+						.onChange(async (value) => {
+							this.plugin.settings.serverTokens[serverUrl] = value;
+							await this.plugin.saveSettings();
+							// Re-render to update status icon
+							this.renderServerTokens(container);
+						});
+					// text.inputEl.type = 'password';
+					return text;
+				})
+				.addButton(button => button
+					.setButtonText('Test')
+					.onClick(async () => {
+						await this.testConnectionToServer(serverUrl, this.plugin.settings.serverTokens[serverUrl] || '');
+					}));
+		}
+	}
+
+	/**
+	 * Test connection to a specific server
+	 */
+	private async testConnectionToServer(serverUrl: string, token: string): Promise<void> {
+		if (!token) {
+			new Notice('❌ No token configured for this server');
+			return;
+		}
+		
+		try {
+			new Notice('Testing connection...');
+			
+			const response = await fetch(`${serverUrl}/auth/me`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${token}`
+				}
+			});
+			
+			if (response.ok) {
+				new Notice(`✅ Connection to ${serverUrl} successful!`);
+			} else {
+				new Notice(`❌ Connection failed: ${response.status} ${response.statusText}`);
+			}
+		} catch (error) {
+			new Notice(`❌ Connection failed: ${error}`);
+		}
+	}
+
+	/**
 	 * Render publish profiles list
 	 */
 	private renderPublishProfiles(container: HTMLElement): void {
@@ -443,6 +542,12 @@ export class PublisherSettingTab extends PluginSettingTab {
 			const isActive = profile.id === this.plugin.settings.activeProfileId;
 			const item = list.createDiv({ 
 				cls: `obs-publisher-profile-item ${isActive ? 'active' : ''} ${!profile.enabled ? 'disabled' : ''}`
+			});
+			
+			// Add right-click context menu
+			item.addEventListener('contextmenu', (e) => {
+				e.preventDefault();
+				this.showProfileContextMenu(e, profile, container);
 			});
 			
 			// Profile header row
@@ -526,6 +631,143 @@ export class PublisherSettingTab extends PluginSettingTab {
 				});
 			}
 		}
+	}
+
+	/**
+	 * Show context menu for profile
+	 */
+	private showProfileContextMenu(event: MouseEvent, profile: PublishProfile, container: HTMLElement): void {
+		const menu = new Menu();
+		const profiles = this.plugin.settings.profiles;
+		const currentIndex = profiles.findIndex(p => p.id === profile.id);
+		
+		// Move Up
+		if (currentIndex > 0) {
+			menu.addItem((item) => {
+				item
+					.setTitle('Move Up')
+					.setIcon('arrow-up')
+					.onClick(async () => {
+						await this.moveProfile(profile, 'up', container);
+					});
+			});
+		}
+		
+		// Move Down
+		if (currentIndex < profiles.length - 1) {
+			menu.addItem((item) => {
+				item
+					.setTitle('Move Down')
+					.setIcon('arrow-down')
+					.onClick(async () => {
+						await this.moveProfile(profile, 'down', container);
+					});
+			});
+		}
+		
+		if (currentIndex > 0 || currentIndex < profiles.length - 1) {
+			menu.addSeparator();
+		}
+		
+		menu.addItem((item) => {
+			item
+				.setTitle('Duplicate Profile')
+				.setIcon('copy')
+				.onClick(async () => {
+					await this.duplicateProfile(profile, container);
+				});
+		});
+		
+		menu.addSeparator();
+		
+		menu.addItem((item) => {
+			item
+				.setTitle('Edit')
+				.setIcon('pencil')
+				.onClick(() => {
+					this.openProfileEditor(profile, container);
+				});
+		});
+		
+		if (profile.enabled && profile.id !== this.plugin.settings.activeProfileId) {
+			menu.addItem((item) => {
+				item
+					.setTitle('Set as Active')
+					.setIcon('check')
+					.onClick(async () => {
+						this.plugin.settings.activeProfileId = profile.id;
+						await this.plugin.saveSettings();
+						this.renderPublishProfiles(container);
+						new Notice(`Profile "${profile.name}" is now active`);
+					});
+			});
+		}
+		
+		menu.addSeparator();
+		
+		menu.addItem((item) => {
+			item
+				.setTitle('Delete')
+				.setIcon('trash')
+				.onClick(async () => {
+					if (confirm(`Delete profile "${profile.name}"?`)) {
+						this.plugin.settings.profiles = this.plugin.settings.profiles.filter(p => p.id !== profile.id);
+						if (this.plugin.settings.activeProfileId === profile.id) {
+							this.plugin.settings.activeProfileId = this.plugin.settings.profiles[0]?.id || null;
+						}
+						await this.plugin.saveSettings();
+						this.renderPublishProfiles(container);
+						new Notice('Profile deleted');
+					}
+				});
+		});
+		
+		menu.showAtMouseEvent(event);
+	}
+
+	/**
+	 * Move a profile up or down in the list
+	 */
+	private async moveProfile(profile: PublishProfile, direction: 'up' | 'down', container: HTMLElement): Promise<void> {
+		const profiles = this.plugin.settings.profiles;
+		const currentIndex = profiles.findIndex(p => p.id === profile.id);
+		
+		if (currentIndex === -1) return;
+		
+		const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+		
+		// Check bounds
+		if (newIndex < 0 || newIndex >= profiles.length) return;
+		
+		// Swap profiles
+		[profiles[currentIndex], profiles[newIndex]] = [profiles[newIndex], profiles[currentIndex]];
+		
+		await this.plugin.saveSettings();
+		this.renderPublishProfiles(container);
+	}
+
+	/**
+	 * Duplicate a profile
+	 */
+	private async duplicateProfile(profile: PublishProfile, container: HTMLElement): Promise<void> {
+		const { generateProfileId } = await import('../settings');
+		
+		// Create a copy with new id and modified name
+		const duplicated: PublishProfile = {
+			...profile,
+			id: generateProfileId(),
+			name: `${profile.name} (Copy)`,
+			lastPublished: undefined,
+			lastPublishUrl: undefined
+		};
+		
+		this.plugin.settings.profiles.push(duplicated);
+		await this.plugin.saveSettings();
+		this.renderPublishProfiles(container);
+		new Notice(`Profile duplicated as "${duplicated.name}"`);
+		
+		// Open editor for the new profile so user can modify it
+		this.openProfileEditor(duplicated, container);
 	}
 
 	/**
@@ -625,6 +867,17 @@ class ProfileEditorModal extends Modal {
 						sourceDirText.setValue(folder);
 					});
 					modal.open();
+				}));
+		
+		// Custom Server URL
+		new Setting(contentEl)
+			.setName('Custom Server URL')
+			.setDesc('Optional: Use a different server for this profile (leave empty to use default)')
+			.addText(text => text
+				.setPlaceholder('https://example.com (empty = use default)')
+				.setValue(this.profile.serverUrl || '')
+				.onChange(value => {
+					this.profile.serverUrl = value.trim() || undefined;
 				}));
 		
 		// Enabled

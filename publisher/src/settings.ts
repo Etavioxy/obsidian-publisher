@@ -12,6 +12,20 @@ export function generateProfileId(): string {
 }
 
 /**
+ * Get the token for a specific server URL
+ */
+export function getTokenForServer(settings: PublisherSettings, serverUrl: string): string {
+	return settings.serverTokens[serverUrl] || '';
+}
+
+/**
+ * Set the token for a specific server URL
+ */
+export function setTokenForServer(settings: PublisherSettings, serverUrl: string, token: string): void {
+	settings.serverTokens[serverUrl] = token;
+}
+
+/**
  * Create a new default profile
  */
 export function createDefaultProfile(name: string = 'Default', siteName: string = ''): PublishProfile {
@@ -31,7 +45,6 @@ export function createDefaultProfile(name: string = 'Default', siteName: string 
 export const DEFAULT_SETTINGS: PublisherSettings = {
 	// Server configuration
 	serverUrl: 'http://localhost:8080',
-	authToken: '',
 	
 	// Build configuration
 	vaultPath: '',  // Will be set to vault path on load
@@ -48,6 +61,9 @@ export const DEFAULT_SETTINGS: PublisherSettings = {
 	// Publish profiles
 	profiles: [],
 	activeProfileId: null,
+	
+	// Server tokens map
+	serverTokens: {},
 	
 	// Advanced options
 	keepTempFiles: false,

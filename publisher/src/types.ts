@@ -18,6 +18,8 @@ export interface PublishProfile {
 	enabled: boolean;
 	/** Optional description */
 	description?: string;
+	/** Optional custom server URL (uses default if not set) */
+	serverUrl?: string;
 	/** Last successful publish timestamp */
 	lastPublished?: number;
 	/** Last publish result URL */
@@ -30,7 +32,8 @@ export interface PublishProfile {
 export interface PublisherSettings {
 	// Server configuration
 	serverUrl: string;
-	authToken: string;
+	/** Map of server URLs to their authentication tokens */
+	serverTokens: Record<string, string>;
 	
 	// Build configuration
 	vaultPath: string;

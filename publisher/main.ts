@@ -5,7 +5,7 @@
 
 import { App, Plugin, Notice, TFile } from 'obsidian';
 import { PublisherSettings, PublishHistoryEntry, UploadResult, PublishProfile } from './src/types';
-import { DEFAULT_SETTINGS, SettingsValidator, PublishHistory } from './src/settings';
+import { DEFAULT_SETTINGS, SettingsValidator, PublishHistory, getTokenForServer } from './src/settings';
 import { CommandExecutor } from './src/commands';
 import { StatusBarManager } from './src/ui/StatusBar';
 import { PublishModal, BuildModal } from './src/ui/PublishModal';
@@ -191,15 +191,21 @@ export default class ObsidianPublisherPlugin extends Plugin {
 	 * Quick publish without UI
 	 */
 	private async quickPublish(): Promise<void> {
-		if (!this.settings.authToken) {
-			new Notice('Please configure authentication token in settings');
-			return;
-		}
-		
 		// Get active profile
 		const activeProfile = this.getActiveProfile();
 		if (!activeProfile) {
 			new Notice('Please create and select a publish profile in settings');
+			return;
+		}
+		
+		// Use profile's custom server URL if set, otherwise use default
+		const serverUrl = activeProfile.serverUrl || this.settings.serverUrl;
+		
+		// Get token for this server
+		const token = getTokenForServer(this.settings, serverUrl);
+		
+		if (!token) {
+			new Notice(`❌ No authentication token configured for server: ${serverUrl}\nPlease configure it in Settings → Server Tokens`, 10000);
 			return;
 		}
 		
@@ -216,8 +222,8 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		
 		const result = await CommandExecutor.publish({
 			vaultPath: sourcePath,
-			serverUrl: this.settings.serverUrl,
-			token: this.settings.authToken,
+			serverUrl: serverUrl,
+			token: token,
 			siteName: activeProfile.siteName,
 			excludePatterns: this.settings.excludePatterns,
 			keepTemp: this.settings.keepTempFiles,

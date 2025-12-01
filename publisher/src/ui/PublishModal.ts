@@ -5,6 +5,7 @@
 import { App, Modal, Notice, ButtonComponent, TextComponent, DropdownComponent } from 'obsidian';
 import { CommandExecutor } from '../commands';
 import { PublisherSettings, CommandContext, UploadResult, PublishProfile } from '../types';
+import { getTokenForServer } from '../settings';
 import path from 'path';
 
 /**
@@ -17,6 +18,7 @@ export class PublishModal extends Modal {
 	private onProfileChanged?: (profileId: string) => void;
 	
 	private profileInfoContainer: HTMLElement;
+	private serverUrlDisplay: HTMLElement;
 	private logContainer: HTMLElement;
 	private progressBar: HTMLElement;
 	private progressText: HTMLElement;
@@ -100,10 +102,10 @@ export class PublishModal extends Modal {
 			}
 		});
 		
-		// Server info
+		// Server info - will be updated with profile selection
 		const infoContainer = contentEl.createDiv({ cls: 'obs-publisher-info' });
-		infoContainer.createEl('p', { 
-			text: `Server: ${this.settings.serverUrl}`,
+		this.serverUrlDisplay = infoContainer.createEl('p', { 
+			text: `Server: ${this.getEffectiveServerUrl()}`,
 			cls: 'obs-publisher-server-url'
 		});
 		
@@ -163,9 +165,15 @@ export class PublishModal extends Modal {
 			return;
 		}
 
-		// Validate settings
-		if (!this.settings.authToken) {
-			new Notice('Please configure authentication token in settings');
+		// Use profile's custom server URL if set, otherwise use default
+		const serverUrl = this.getEffectiveServerUrl();
+		
+		// Get token for this server
+		const token = getTokenForServer(this.settings, serverUrl);
+		
+		// Validate token
+		if (!token) {
+			new Notice(`❌ No authentication token configured for server: ${serverUrl}\nPlease configure it in Settings → Server Tokens`, 10000);
 			return;
 		}
 
@@ -202,8 +210,8 @@ export class PublishModal extends Modal {
 		
 		const result = await CommandExecutor.publish({
 			vaultPath: sourcePath,
-			serverUrl: this.settings.serverUrl,
-			token: this.settings.authToken,
+			serverUrl: serverUrl,
+			token: token,
 			siteName: this.activeProfile.siteName,
 			excludePatterns: this.settings.excludePatterns,
 			keepTemp: this.settings.keepTempFiles,
@@ -295,6 +303,23 @@ export class PublishModal extends Modal {
 			text: `Source: ${this.activeProfile.sourceDir}`,
 			cls: 'obs-publisher-source-dir'
 		});
+		
+		// Update server URL display
+		if (this.serverUrlDisplay) {
+			const serverUrl = this.getEffectiveServerUrl();
+			const isCustom = this.activeProfile.serverUrl ? ' (custom)' : '';
+			this.serverUrlDisplay.textContent = `Server: ${serverUrl}${isCustom}`;
+		}
+	}
+	
+	/**
+	 * Get the effective server URL (profile's custom URL or default)
+	 */
+	private getEffectiveServerUrl(): string {
+		if (this.activeProfile?.serverUrl) {
+			return this.activeProfile.serverUrl;
+		}
+		return this.settings.serverUrl;
 	}
 	
 	/**
