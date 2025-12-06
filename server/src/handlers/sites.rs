@@ -213,18 +213,14 @@ pub async fn upload_site(
     let filename = archive_filename.ok_or_else(|| AppError::InvalidInput("Missing archive filename".to_string()))?;
 
     // Check for siteName conflict
-    /*
-    if let Some(existing_site) = storage.sites.get_by_name(&site_name).await? {
+    if let Some(existing_site) = storage.sites.get_latest_by_name(&site_name).await? {
         // Allow overwrite if same owner, otherwise conflict
         if existing_site.owner_id != user_id {
             // Cleanup temp file before returning error
             tokio::fs::remove_file(&temp_archive).await.ok();
             return Err(AppError::SiteNameConflict(site_name));
         }
-        // Same owner - will overwrite the existing site files
-        debug!("Overwriting existing site '{}' (UUID: {}) owned by user {}", site_name, existing_site.id, user_id);
     }
-    */
 
     // Keep archive in temp location - process_site_archive will clean it up
     // Don't move to name_dir because process_site_archive will clear that directory

@@ -98,7 +98,8 @@ impl SiteStorage {
     }
 
     read_compare!{ pub fn get(&self, id: Uuid) -> Result<Option<Site>, AppError> }
-    read_compare!{ pub fn get_by_name(&self, name: &str) -> Result<Option<Site>, AppError> }
+    read_compare!{ pub fn get_latest_by_name(&self, name: &str) -> Result<Option<Site>, AppError> }
+    read_list_compare!{ pub fn get_all_by_name(&self, name: &str) -> Result<Vec<Site>, AppError> }
     read_list_compare!{ pub fn list_all(&self) -> Result<Vec<Site>, AppError> }
     read_list_compare!{ pub fn list_by_owner(&self, owner_id: Uuid) -> Result<Vec<Site>, AppError> }
     write_both!{ pub fn create(&self, site: Site) -> Result<(), AppError> }

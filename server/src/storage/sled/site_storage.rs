@@ -46,15 +46,39 @@ impl SiteStorage {
         }
     }
 
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<Site>, AppError> {
+    pub async fn get_latest_by_name(&self, name: &str) -> Result<Option<Site>, AppError> {
+        // Find the latest site with this name (by created_at)
+        let mut latest: Option<Site> = None;
         for result in self.db.iter() {
             let (_, value) = result?;
             let site: Site = serde_json::from_slice(&value)?;
             if site.name == name {
-                return Ok(Some(site));
+                match &latest {
+                    None => latest = Some(site),
+                    Some(current) => {
+                        if site.created_at > current.created_at {
+                            latest = Some(site);
+                        }
+                    }
+                }
             }
         }
-        Ok(None)
+        Ok(latest)
+    }
+    
+    /// Get all site versions with the given name, sorted by created_at descending (newest first)
+    pub async fn get_all_by_name(&self, name: &str) -> Result<Vec<Site>, AppError> {
+        let mut sites = Vec::new();
+        for result in self.db.iter() {
+            let (_, value) = result?;
+            let site: Site = serde_json::from_slice(&value)?;
+            if site.name == name {
+                sites.push(site);
+            }
+        }
+        // Sort by created_at descending (newest first)
+        sites.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        Ok(sites)
     }
 
     pub async fn update(&self, site: Site) -> Result<(), AppError> {

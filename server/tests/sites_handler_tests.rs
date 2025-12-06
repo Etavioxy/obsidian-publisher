@@ -132,7 +132,7 @@ async fn test_save_site_record_create_new() {
 }
 
 #[tokio::test]
-async fn test_save_site_record_update_existing() {
+async fn test_save_site_record_creates_new_version() {
     let (storage, _temp) = create_test_storage().await;
     
     // Create owner user
@@ -140,23 +140,32 @@ async fn test_save_site_record_update_existing() {
     let user_id = user.id;
     storage.users.create(user).await.expect("Failed to create user");
     
-    // Create initial site
-    let site_id = Uuid::new_v4();
+    // Create initial site (version 1)
+    let site1_id = Uuid::new_v4();
     let site_name = "existing-site".to_string();
-    let site = Site::new(site_id, user_id, site_name.clone(), "Original description".to_string());
-    storage.sites.create(site).await.expect("Failed to create site");
+    let mut site1 = Site::new(site1_id, user_id, site_name.clone(), "Version 1".to_string());
+    site1.created_at = chrono::Utc::now() - chrono::Duration::hours(1);
+    storage.sites.create(site1).await.expect("Failed to create site v1");
     
-    // Update via save_site_record (simulating re-upload with different ID)
-    let new_site_id = Uuid::new_v4();
+    // Create new version via save_site_record (simulating re-upload)
+    let site2_id = Uuid::new_v4();
     
-    let updated = save_site_record(&storage, new_site_id, &site_name, user_id).await
+    let new_site = save_site_record(&storage, site2_id, &site_name, user_id).await
         .expect("save_site_record failed");
     
-    // Should have the ORIGINAL site_id (not the new one passed in)
-    assert_eq!(updated.id, site_id);
-    assert_eq!(updated.name, site_name);
-    // Description should be updated
-    assert_eq!(updated.description, "Site uploaded from CLI");
+    // Should have the NEW site_id (new version)
+    assert_eq!(new_site.id, site2_id);
+    assert_eq!(new_site.name, site_name);
+    assert_eq!(new_site.description, "Site uploaded from CLI");
+    
+    // get_latest_by_name should return the LATEST version (site2)
+    let latest = storage.sites.get_latest_by_name(&site_name).await.expect("get_latest_by_name failed");
+    assert!(latest.is_some());
+    assert_eq!(latest.unwrap().id, site2_id, "get_latest_by_name should return the newest version");
+    
+    // Both versions should exist
+    let all_versions = storage.sites.get_all_by_name(&site_name).await.expect("get_all_by_name failed");
+    assert_eq!(all_versions.len(), 2, "Should have 2 versions");
 }
 
 // ===== SiteResponse Tests =====

@@ -1,5 +1,5 @@
 use crate::{error::AppError, models::Site};
-use sea_orm::{Database, DatabaseConnection, EntityTrait, Set, ConnectionTrait, QueryFilter, ColumnTrait};
+use sea_orm::{Database, DatabaseConnection, EntityTrait, Set, ConnectionTrait, QueryFilter, ColumnTrait, QueryOrder};
 use std::path::PathBuf;
 use uuid::Uuid;
 use crate::storage::orm::entities::sites as sites_entity;
@@ -68,9 +68,11 @@ impl SiteStorage {
         }
     }
 
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<Site>, AppError> {
+    pub async fn get_latest_by_name(&self, name: &str) -> Result<Option<Site>, AppError> {
+        // Find the latest site with this name (by created_at descending)
         if let Some(m) = sites_entity::Entity::find()
             .filter(sites_entity::Column::Name.eq(name.to_string()))
+            .order_by_desc(sites_entity::Column::CreatedAt)
             .one(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))? 
         {
             let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at)?.with_timezone(&chrono::Utc);
@@ -78,6 +80,20 @@ impl SiteStorage {
         } else {
             Ok(None)
         }
+    }
+    
+    /// Get all site versions with the given name, sorted by created_at descending (newest first)
+    pub async fn get_all_by_name(&self, name: &str) -> Result<Vec<Site>, AppError> {
+        let models = sites_entity::Entity::find()
+            .filter(sites_entity::Column::Name.eq(name.to_string()))
+            .order_by_desc(sites_entity::Column::CreatedAt)
+            .all(&self.conn).await.map_err(|e| AppError::Database(e.to_string()))?;
+        let mut sites = Vec::new();
+        for m in models {
+            let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at)?.with_timezone(&chrono::Utc);
+            sites.push(Site { id: Uuid::parse_str(&m.id)?, owner_id: Uuid::parse_str(&m.owner_id)?, name: m.name, domain: m.domain, description: m.description, created_at });
+        }
+        Ok(sites)
     }
 
     pub async fn update(&self, site: Site) -> Result<(), AppError> {

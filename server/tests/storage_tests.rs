@@ -193,7 +193,7 @@ async fn test_site_files_path_management() {
 }
 
 #[tokio::test]
-async fn test_site_get_by_name() {
+async fn test_site_get_latest_by_name() {
     let (storage, _temp) = create_test_storage().await;
     
     // Create owner user
@@ -213,7 +213,7 @@ async fn test_site_get_by_name() {
     storage.sites.create(site.clone()).await.expect("Failed to create site");
     
     // Get by name should find the site
-    let found = storage.sites.get_by_name(&site_name).await.expect("Failed to get by name");
+    let found = storage.sites.get_latest_by_name(&site_name).await.expect("Failed to get by name");
     assert!(found.is_some());
     let found = found.unwrap();
     assert_eq!(found.id, site_id);
@@ -221,7 +221,7 @@ async fn test_site_get_by_name() {
     assert_eq!(found.owner_id, owner_id);
     
     // Get by non-existent name should return None
-    let not_found = storage.sites.get_by_name("non-existent-site").await.expect("Failed to get by name");
+    let not_found = storage.sites.get_latest_by_name("non-existent-site").await.expect("Failed to get by name");
     assert!(not_found.is_none());
 }
 
@@ -250,7 +250,7 @@ async fn test_site_name_uniqueness() {
     storage.sites.create(site1.clone()).await.expect("Failed to create site1");
     
     // Verify site1 can be found by name
-    let found = storage.sites.get_by_name(&shared_name).await.expect("Failed to get by name");
+    let found = storage.sites.get_latest_by_name(&shared_name).await.expect("Failed to get by name");
     assert!(found.is_some());
     assert_eq!(found.unwrap().owner_id, owner1_id);
     
@@ -268,12 +268,12 @@ async fn test_site_name_uniqueness() {
     let all_sites = storage.sites.list_all().await.expect("Failed to list all");
     assert_eq!(all_sites.len(), 2);
     
-    // Verify get_by_name returns the correct site
-    let found_shared = storage.sites.get_by_name(&shared_name).await.expect("get_by_name failed");
+    // Verify get_latest_by_name returns the correct site
+    let found_shared = storage.sites.get_latest_by_name(&shared_name).await.expect("get_latest_by_name failed");
     assert!(found_shared.is_some());
     assert_eq!(found_shared.unwrap().id, site1_id);
     
-    let found_another = storage.sites.get_by_name("another-name").await.expect("get_by_name failed");
+    let found_another = storage.sites.get_latest_by_name("another-name").await.expect("get_latest_by_name failed");
     assert!(found_another.is_some());
     assert_eq!(found_another.unwrap().id, site2_id);
 }
@@ -299,7 +299,7 @@ async fn test_site_name_update() {
     storage.sites.create(site.clone()).await.expect("Failed to create site");
     
     // Verify original name lookup works
-    let found = storage.sites.get_by_name(&original_name).await.expect("get_by_name failed");
+    let found = storage.sites.get_latest_by_name(&original_name).await.expect("get_latest_by_name failed");
     assert!(found.is_some());
     
     // Update site name
@@ -309,11 +309,56 @@ async fn test_site_name_update() {
     storage.sites.update(updated_site).await.expect("update failed");
     
     // Verify new name lookup works
-    let found_new = storage.sites.get_by_name(&new_name).await.expect("get_by_name failed");
+    let found_new = storage.sites.get_latest_by_name(&new_name).await.expect("get_latest_by_name failed");
     assert!(found_new.is_some());
     assert_eq!(found_new.unwrap().id, site_id);
     
     // Original name should no longer find the site
-    let found_old = storage.sites.get_by_name(&original_name).await.expect("get_by_name failed");
+    let found_old = storage.sites.get_latest_by_name(&original_name).await.expect("get_latest_by_name failed");
     assert!(found_old.is_none());
+}
+
+#[tokio::test]
+async fn test_site_multiple_versions() {
+    let (storage, _temp) = create_test_storage().await;
+    
+    // Create owner
+    let owner = User::new("owner".to_string(), "pass".to_string());
+    let owner_id = owner.id;
+    storage.users.create(owner).await.expect("Failed to create owner");
+    
+    let site_name = "versioned-site".to_string();
+    
+    // Create first version
+    let site1_id = Uuid::new_v4();
+    let mut site1 = Site::new(site1_id, owner_id, site_name.clone(), "Version 1".to_string());
+    site1.created_at = chrono::Utc::now() - chrono::Duration::hours(2);
+    storage.sites.create(site1.clone()).await.expect("Failed to create site v1");
+    
+    // Create second version (newer)
+    let site2_id = Uuid::new_v4();
+    let mut site2 = Site::new(site2_id, owner_id, site_name.clone(), "Version 2".to_string());
+    site2.created_at = chrono::Utc::now() - chrono::Duration::hours(1);
+    storage.sites.create(site2.clone()).await.expect("Failed to create site v2");
+    
+    // Create third version (newest)
+    let site3_id = Uuid::new_v4();
+    let site3 = Site::new(site3_id, owner_id, site_name.clone(), "Version 3".to_string());
+    storage.sites.create(site3.clone()).await.expect("Failed to create site v3");
+    
+    // get_latest_by_name should return the LATEST version (site3)
+    let latest = storage.sites.get_latest_by_name(&site_name).await.expect("get_latest_by_name failed");
+    assert!(latest.is_some());
+    let latest = latest.unwrap();
+    assert_eq!(latest.id, site3_id, "get_latest_by_name should return the latest version");
+    assert_eq!(latest.description, "Version 3");
+    
+    // get_all_by_name should return all versions, sorted by created_at descending
+    let all_versions = storage.sites.get_all_by_name(&site_name).await.expect("get_all_by_name failed");
+    assert_eq!(all_versions.len(), 3, "Should have 3 versions");
+    
+    // Verify order: newest first
+    assert_eq!(all_versions[0].id, site3_id, "First should be newest (v3)");
+    assert_eq!(all_versions[1].id, site2_id, "Second should be v2");
+    assert_eq!(all_versions[2].id, site1_id, "Third should be oldest (v1)");
 }
