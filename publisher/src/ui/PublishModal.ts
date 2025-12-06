@@ -9,6 +9,35 @@ import { getTokenForServer } from '../settings';
 import path from 'path';
 
 /**
+ * Render log message with clickable URLs (shared helper)
+ */
+function renderLogWithLinks(container: HTMLElement, message: string): void {
+	const urlPattern = /(https?:\/\/[^\s<>"'\)\]]+)/g;
+	
+	let lastIndex = 0;
+	let match;
+	
+	while ((match = urlPattern.exec(message)) !== null) {
+		if (match.index > lastIndex) {
+			container.appendText(message.slice(lastIndex, match.index));
+		}
+		
+		const link = container.createEl('a', {
+			text: match[1],
+			cls: 'obs-publisher-log-link',
+			href: match[1]
+		});
+		link.setAttr('target', '_blank');
+		
+		lastIndex = urlPattern.lastIndex;
+	}
+	
+	if (lastIndex < message.length) {
+		container.appendText(message.slice(lastIndex));
+	}
+}
+
+/**
  * Publish modal for interactive publishing
  */
 export class PublishModal extends Modal {
@@ -323,7 +352,7 @@ export class PublishModal extends Modal {
 	}
 	
 	/**
-	 * Add log entry
+	 * Add log entry with clickable URL detection
 	 */
 	private addLog(message: string, type: 'info' | 'success' | 'error' = 'info'): void {
 		this.logs.push(message);
@@ -331,7 +360,7 @@ export class PublishModal extends Modal {
 		const logEntry = this.logContainer.createDiv({ 
 			cls: `obs-publisher-log-entry obs-publisher-log-${type}` 
 		});
-		logEntry.textContent = message;
+		renderLogWithLinks(logEntry, message);
 		
 		// Auto-scroll to bottom
 		this.logContainer.scrollTop = this.logContainer.scrollHeight;
@@ -499,7 +528,7 @@ export class BuildModal extends Modal {
 		const logEntry = this.logContainer.createDiv({ 
 			cls: `obs-publisher-log-entry obs-publisher-log-${type}` 
 		});
-		logEntry.textContent = message;
+		renderLogWithLinks(logEntry, message);
 		this.logContainer.scrollTop = this.logContainer.scrollHeight;
 	}
 	

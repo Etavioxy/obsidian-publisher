@@ -347,7 +347,7 @@ export class PublisherSettingTab extends PluginSettingTab {
 				const link = item.createEl('a', {
 					text: entry.siteUrl,
 					cls: 'obs-publisher-history-url',
-					href: `http://${entry.siteUrl}`
+					href: entry.siteUrl
 				});
 				link.setAttribute('target', '_blank');
 			}

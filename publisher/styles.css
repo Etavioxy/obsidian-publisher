@@ -125,6 +125,19 @@
 	font-weight: 500;
 }
 
+/* Log links */
+.obs-publisher-log-link {
+	color: var(--link-color);
+	text-decoration: underline;
+	cursor: pointer;
+	word-break: break-all;
+}
+
+.obs-publisher-log-link:hover {
+	color: var(--link-color-hover);
+	text-decoration: none;
+}
+
 /* ===== Buttons ===== */
 .obs-publisher-buttons {
 	display: flex;

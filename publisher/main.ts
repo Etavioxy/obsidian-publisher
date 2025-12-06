@@ -271,7 +271,7 @@ export default class ObsidianPublisherPlugin extends Plugin {
 		// Add to history
 		const historyEntry: PublishHistoryEntry = {
 			timestamp: Date.now(),
-			siteUrl: result.url,
+			siteUrl: result.url_by_id || result.url,
 			siteId: result.id,
 			success: true
 		};

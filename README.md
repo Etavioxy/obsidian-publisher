@@ -16,9 +16,9 @@ TODO:
     * [x] database
         * [x] orm support
         * [x] sled optimization
-* [ ] publisher
+* [x] publisher
     * [x] architecture
-    * [ ] multiple settings
+    * [x] multiple settings
     * [x] custom logger
 * [ ] frontend
     * [ ] sites markdown

@@ -121,6 +121,7 @@ export interface CommandResult {
 export interface UploadResult {
 	id: string;
 	url: string;
+	url_by_id?: string;
 	name?: string;
 	domain?: string | null;
 	description?: string;
