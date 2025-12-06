@@ -6,10 +6,13 @@ import { log, loggerManager, Logger, ProgressContext } from './utils/logger';
 export interface UploadOptions {
   serverUrl: string;
   token?: string;
+  siteName: string;
   metaPath?: string;
   progressContext?: ProgressContext;
   customLogger?: Partial<Logger>;
   customLoggerKey?: string;
+  /** If true, prompt for credentials when token is missing (CLI only) */
+  allowPrompt?: boolean;
 }
 
 export interface UploadResult {
@@ -52,11 +55,17 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   // If no token provided, prompt for credentials and request one from the server
   let token = tokenFromOption;
   if (!token) {
-    try {
-      token = await promptForCredentials(serverUrl);
-    } catch (error) {
-      log.error('Upload error:', error);
-      throw new Error('Aborted upload: authentication is required');
+    if (options.allowPrompt) {
+      // CLI mode: prompt for credentials
+      try {
+        token = await promptForCredentials(serverUrl);
+      } catch (error) {
+        log.error('Upload error:', error);
+        throw new Error('Aborted upload: authentication is required');
+      }
+    } else {
+      // Non-CLI mode (plugin): require token to be provided
+      throw new Error('Missing authentication token. Please provide a token or login first.');
     }
   }
 
@@ -69,13 +78,24 @@ export async function uploadArchive(archivePath: string, options: UploadOptions)
   formData.append('uuid', siteUuid);
   formData.append('site', blob, fileName);
   
-  const headers: Record<string, string> = {};
-  if (token) {
-    log.debug(`🔐 Token: ${token}`);
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  log.debug(`🔐 Token: ${token}`);
   
   try {
+    // Pre-validate token with a lightweight request before uploading large body
+    // This prevents wasted bandwidth and ECONNABORTED on auth failure
+    const authCheckResponse = await fetch(`${serverUrl}/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!authCheckResponse.ok) {
+      const errorText = await authCheckResponse.text();
+      throw new Error(`Authentication failed: ${authCheckResponse.status} ${authCheckResponse.statusText}\n${errorText}`);
+    }
+    
+    // Token is valid, proceed with upload
     const response = await fetch(`${serverUrl}/api/sites`, {
       method: 'POST',
       headers: {

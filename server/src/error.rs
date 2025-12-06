@@ -5,6 +5,7 @@ use axum::{
 };
 use serde_json::json;
 use thiserror::Error;
+use tracing::error;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -53,6 +54,7 @@ impl IntoResponse for AppError {
         let (status, error_message) = match self {
             AppError::AuthenticationFailed => (StatusCode::UNAUTHORIZED, "Authentication failed"),
             AppError::AuthorizationFailed => (StatusCode::FORBIDDEN, "Authorization failed"),
+            AppError::Jwt(_) => (StatusCode::UNAUTHORIZED, "Token expired or invalid"),
             AppError::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
             AppError::SiteNotFound => (StatusCode::NOT_FOUND, "Site not found"),
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
@@ -61,6 +63,11 @@ impl IntoResponse for AppError {
             AppError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Configuration error"),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
         };
+
+        // Log errors for debugging (especially 500 errors)
+        if status == StatusCode::INTERNAL_SERVER_ERROR {
+            error!("Internal server error: {:?}", self);
+        }
 
         let body = Json(json!({
             "error": error_message,

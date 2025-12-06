@@ -72,6 +72,7 @@ program
   .command('upload')
   .description('Upload archive to server')
   .argument('<archive-path>', 'Path to archive file')
+  .requiredOption('-n, --name <siteName>', 'Site name for URL path')
   .option('-s, --server <url>', 'Server URL', 'http://localhost:8080')
   .option('-t, --token <token>', 'Authentication token')
   .option('--meta <path>', 'Path to site-meta.json')
@@ -80,7 +81,9 @@ program
       const result = await uploadArchive(archivePath, {
         serverUrl: options.server,
         token: options.token,
-        metaPath: options.meta
+        siteName: options.name,
+        metaPath: options.meta,
+        allowPrompt: true
       });
       log.success('Archive uploaded successfully!');
       log.info(`🌐 Site URL: http://${result.url}`);
@@ -95,6 +98,7 @@ program
   .command('publish')
   .description('Build, pack and upload site to server')
   .argument('<vault-path>', 'Path to Obsidian vault')
+  .option('-n, --name <siteName>', 'Site name for URL path (defaults to vault folder name)')
   .option('-s, --server <url>', 'Server URL', 'http://localhost:8080')
   .option('-t, --token <token>', 'Authentication token')
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
@@ -105,6 +109,9 @@ program
     const tempBuildDir = path.join(basePath, './temp-build');
     const tempArchive = path.join(basePath, './temp-site.tar.gz');
     let publishError: any = null;
+
+    // Default siteName to the vault folder name
+    const siteName = options.name || path.basename(path.resolve(vaultPath));
 
     try {
       // 0. 构建
@@ -128,7 +135,9 @@ program
       const result = await uploadArchive(tempArchive, {
         serverUrl: options.server,
         token: options.token,
-        metaPath: path.join(tempBuildDir, 'site-meta.json')
+        siteName: siteName,
+        metaPath: path.join(tempBuildDir, 'site-meta.json'),
+        allowPrompt: true
       });
       
       log.success('Site published successfully!');
