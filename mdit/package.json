@@ -1,0 +1,38 @@
+{
+  "name": "mdit-obsidian",
+  "version": "0.0.1",
+  "description": "Obsidian-style markdown-it plugins bundle (wikilink, embed, tags, preprocessor)",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean && node verify-build.mjs",
+    "test": "vitest run",
+    "dev": "vitest"
+  },
+  "keywords": [
+    "obsidian",
+    "markdown-it-plugin",
+    "wikilink"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.0",
+  "dependencies": {
+    "@mdit/plugin-alert": "^0.22.3",
+    "@mdit/plugin-attrs": "^0.24.1",
+    "@mdit/plugin-img-size": "^0.22.4",
+    "@mdit/plugin-katex": "^0.24.1",
+    "@mdit/plugin-mark": "^0.22.1",
+    "@mdit/plugin-spoiler": "^0.22.2",
+    "@mdit/plugin-tasklist": "^0.22.2",
+    "markdown-it": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+tests/
+src/
+tsconfig.json
+verify-build.mjs
+verify-build.js
+.gitignore
+.eslintrc.cjs
