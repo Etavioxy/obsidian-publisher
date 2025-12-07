@@ -51,7 +51,12 @@
 }
 
 .obs-publisher-progress-complete {
-	background: var(--color-green);
+	background: linear-gradient(
+		90deg,
+		hsl(calc(var(--accent-h) + 30), var(--accent-s), var(--accent-l)),
+		hsl(var(--accent-h), var(--accent-s), var(--accent-l)),
+		hsl(calc(var(--accent-h) - 30), var(--accent-s), var(--accent-l))
+	);
 }
 
 /* Progress Nodes (hoverable dots) */
