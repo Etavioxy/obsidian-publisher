@@ -1,4 +1,4 @@
-import { obsidianWikiLinks, obsidianTags, obsidianEmbeds } from './plugin-obsidian.js';
+import { useObsidianMarkdown } from './mdit-obsidian.min.mjs';
 import { configParams } from './config-params.js';
 import * as path from 'path';
 
@@ -24,6 +24,11 @@ export default {
   srcExclude: excludePatterns,
   outDir: path.resolve(outputDir),
   
+  // 导入样式表
+  head: [
+    ['link', { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css' }],
+  ],
+  
   markdown: {
     lineNumbers: true,
     anchor: {
@@ -36,15 +41,11 @@ export default {
     linkify: true,    // 自动将 URL 转换为链接
     // 配置 markdown-it 实例
     config: (md) => {
-      // 应用 Obsidian 插件
-
-      md.use(obsidianWikiLinks, { base, linkmap: wikiLinkMap });
-      md.use(obsidianTags);
-      md.use(obsidianEmbeds, { base });
-      
-      // 其他 markdown-it 插件配置
-      // md.use(require('markdown-it-footnote'));
-      // md.use(require('markdown-it-task-lists'));
+      // mdit-obsidian
+      useObsidianMarkdown(md, { 
+        basePath: base, 
+        linkmap: wikiLinkMap 
+      });
     }
   },
   
