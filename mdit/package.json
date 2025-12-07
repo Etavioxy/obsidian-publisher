@@ -2,11 +2,11 @@
   "name": "mdit-obsidian",
   "version": "0.0.1",
   "description": "Obsidian-style markdown-it plugins bundle (wikilink, embed, tags, preprocessor)",
-  "main": "dist/index.cjs",
+  "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean && node verify-build.mjs",
+    "build": "node esbuild-bundle.mjs && node verify-build.mjs",
     "test": "vitest run",
     "dev": "vitest"
   },
@@ -31,7 +31,7 @@
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.1",
-    "tsup": "^8.5.1",
+    "esbuild": "^0.27.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.15"
   }
