@@ -48,12 +48,36 @@ export function resolveLinkPath(
   const byName = linkmap[lastSegment];
   
   if (byName) {
-    const resolved = Array.isArray(byName) ? byName[0] : byName;
     const candidates = Array.isArray(byName) ? byName : [byName];
+    
+    // 如果有多个候选，尝试找到匹配路径前缀的候选
+    if (candidates.length > 1) {
+      // 例如 path="test/a"，candidates=["/a", "/test/a"]
+      // 应该匹配 "/test/a"
+      const normalized = path.startsWith('/') ? path : `/${path}`;
+      for (const candidate of candidates) {
+        if (candidate.endsWith(normalized) || candidate.endsWith(normalized.replace(/^\//, ''))) {
+          return {
+            resolved: candidate,
+            candidates,
+            isAmbiguous: true,
+          };
+        }
+      }
+      // 如果路径前缀都不匹配，返回第一个
+      const resolved = candidates[0];
+      return {
+        resolved,
+        candidates,
+        isAmbiguous: true,
+      };
+    }
+    
+    const resolved = candidates[0];
     return {
       resolved,
       candidates,
-      isAmbiguous: Array.isArray(byName) && byName.length > 1,
+      isAmbiguous: false,
     };
   }
 

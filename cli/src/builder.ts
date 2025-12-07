@@ -154,7 +154,7 @@ interface ConfigParams {
   srcDir: string;
   excludePatterns: string[];
   nav: Array<{ text: string; link: string }>;
-  wikiLinkMap: Record<string, string>;
+  wikiLinkMap: Record<string, string | string[]>;
   sidebar: Record<string, any>;
 }
 

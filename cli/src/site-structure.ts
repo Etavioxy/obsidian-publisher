@@ -10,7 +10,7 @@ export interface FileItem {
 
 export interface SiteStructure {
   nav: Array<{ text: string; link: string }>;
-  wikiLinkMap: Record<string, string>;
+  wikiLinkMap: Record<string, string | string[]>;
   sidebar: Record<string, Array<{ text: string; link: string; items?: Array<{ text: string; link: string }> }>>;
   fileTree: FileItem[];
 }
@@ -18,14 +18,20 @@ export interface SiteStructure {
 export async function analyzeSiteStructure(docsDir: string): Promise<SiteStructure> {
   const markdownFiles = await glob('**/*.md', { cwd: docsDir });
   
+  // 收集所有文件（用于 wikiLinkMap，支持图片、PDF 等资源的链接）
+  const allFiles = await glob('**/*', { 
+    cwd: docsDir,
+    nodir: true  // 排除目录
+  });
+  
   // 构建文件树
   const fileTree = buildFileTree(markdownFiles);
   
   // 构建导航
   const nav = buildNavigation(markdownFiles);
 
-  // 构建wiki索引
-  const wikiLinkMap = buildWikiLinkMap(markdownFiles);
+  // 构建wiki索引（包含所有文件）
+  const wikiLinkMap = buildWikiLinkMap(allFiles);
 
   // 构建侧边栏
   const sidebar = buildSidebar(markdownFiles);
@@ -82,12 +88,30 @@ function buildNavigation(files: string[]): Array<{ text: string; link: string }>
   }));
 }
 
-function buildWikiLinkMap(files: string[]): Record<string, string> {
-  const wikiLinkMap: Record<string, string> = {};
+function buildWikiLinkMap(files: string[]): Record<string, string | string[]> {
+  const wikiLinkMap: Record<string, string | string[]> = {};
   
   for (const file of files) {
-    const title = path.basename(file, '.md');
-    wikiLinkMap[title] = `/${file.replace(/\\/g, '/').replace('.md', '')}`;
+    const ext = path.extname(file);
+    // 获取不带扩展名的文件名作为 key
+    const title = path.basename(file, ext);
+    
+    // 对于 .md 文件，去掉扩展名；其他文件保留扩展名
+    const linkPath = ext === '.md' 
+      ? `/${file.replace(/\\/g, '/').replace('.md', '')}`
+      : `/${file.replace(/\\/g, '/')}`;
+    
+    // 如果该标题已存在，转换为数组或添加到数组中
+    if (wikiLinkMap[title]) {
+      const existing = wikiLinkMap[title];
+      if (Array.isArray(existing)) {
+        existing.push(linkPath);
+      } else {
+        wikiLinkMap[title] = [existing, linkPath];
+      }
+    } else {
+      wikiLinkMap[title] = linkPath;
+    }
   }
       
   return wikiLinkMap;

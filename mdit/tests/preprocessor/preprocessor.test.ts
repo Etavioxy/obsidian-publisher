@@ -31,4 +31,28 @@ describe('obsidianPreprocessor', () => {
     const output = obsidianPreprocessor(input, {});
     expect(output).toBe('![alt|600x0](url)');
   });
+
+  it('resolves embed image using linkmap - strips extension for lookup', () => {
+    // When user writes ![[photo.png]]
+    // and linkmap has key without extension "photo": "/gallery/photo.png"
+    // It should resolve to the correct path by stripping .png extension from the filename
+    const input = '![[photo.png]]';
+    const linkmap = {
+      'photo': '/gallery/photo.png',
+    };
+    const output = obsidianPreprocessor(input, { basePath: '/', linkmap });
+    expect(output).toContain('/gallery/photo.png');
+    expect(output).toContain('{.obsidian-embed}');
+  });
+
+  it('resolves embed using linkmap with exact path match first', () => {
+    // When user writes ![[image.png]] with nested path
+    // and linkmap has direct match for filename without extension
+    const input = '![[photo.jpg]]';
+    const linkmap = {
+      'photo': '/gallery/photos/photo.jpg',
+    };
+    const output = obsidianPreprocessor(input, { basePath: '/', linkmap });
+    expect(output).toContain('/gallery/photos/photo.jpg');
+  });
 });

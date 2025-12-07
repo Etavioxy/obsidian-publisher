@@ -28,9 +28,19 @@ function resolvePath(path: string, opts: PreprocessorOptions): string {
   let target: string | undefined;
   
   if (linkmap) {
-    const resolution = resolveLinkPath(path, { linkmap, currentFilePath: opts.currentFilePath });
+    // 先试原始 path（带扩展名）
+    let resolution = resolveLinkPath(path, { linkmap, currentFilePath: opts.currentFilePath });
     if (resolution.candidates.length > 0) {
       target = resolution.resolved;
+    } else {
+      // 如果没找到，尝试去掉扩展名
+      const pathWithoutExt = path.replace(/\.[^.]+$/, '');
+      if (pathWithoutExt !== path) {
+        resolution = resolveLinkPath(pathWithoutExt, { linkmap, currentFilePath: opts.currentFilePath });
+        if (resolution.candidates.length > 0) {
+          target = resolution.resolved;
+        }
+      }
     }
   }
 
