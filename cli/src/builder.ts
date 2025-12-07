@@ -172,29 +172,11 @@ export const configParams = ${JSON.stringify(params, null, 2)};
 
 async function buildWithVitePress(root: string) {
   log.progress(`🔨 Building with VitePress from ${root}...`);
-  await new Promise((resolve, reject) => {
-    /* hack install vue */
-    exec(`pnpm init`, { cwd: root }, (error, stdout, stderr) => {
-      if (error) {
-        log.error(`init failed: ${stderr}`);
-        reject(error);
-      } else {
-        log.success(`init succeeded:\n${stdout}`);
-        resolve(stdout);
-      }
-    });
-  });
-  await new Promise((resolve, reject) => {
-    exec(`pnpm i vue`, { cwd: root }, (error, stdout, stderr) => {
-      if (error) {
-        log.error(`vue install failed: ${stderr}`);
-        reject(error);
-      } else {
-        log.success(`vue install succeeded:\n${stdout}`);
-        resolve(stdout);
-      }
-    });
-  });
+  
+  // hack empty package.json, redirect vue dependency to vitepress package
+  const packageJsonPath = path.join(root, 'package.json');
+  await fs.writeFile(packageJsonPath, '{}');
+  
   await new Promise((resolve, reject) => {
     exec(`npx vitepress build`, { cwd: root }, (error, stdout, stderr) => {
       if (error) {

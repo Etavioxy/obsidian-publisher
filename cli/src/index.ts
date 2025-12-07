@@ -22,7 +22,7 @@ program
   .option('-o, --output <path>', 'Output directory', './build')
   .option('--src-dir <path>', 'VitePress source directory', '.')
   .option('--exclude <patterns...>', 'Exclude patterns', ['.obsidian/**', '.trash/**'])
-  .option('--only-temp <path>', 'Only prepare the temporary build directory and do not run final build', '')
+  .option('--only-temp <path>', 'Only prepare the temporary build directory and do not run final build for local vitepress testing', '')
   .action(async (vaultPath, options) => {
     try {
       await buildSite(vaultPath, {
