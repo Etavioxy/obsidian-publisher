@@ -6,8 +6,8 @@ TODO:
 * [ ] cli
     * [x] architecture
     * [ ] build filter
-    * [ ] wikiLinkMap conflicts (need obsidian consistency check)
-    * [ ] missing attachments error
+    * [x] wikiLinkMap conflicts (need obsidian consistency check)
+    * [x] missing attachments error
 * [ ] server
     * [x] architecture
     * [x] admin panel
@@ -21,12 +21,12 @@ TODO:
     * [x] multiple settings
     * [x] custom logger
 * [ ] frontend
-    * [ ] sites markdown
+    * [x] sites markdown
         * [x] wiki links
-	        * [ ] image scale
-        * [ ] GFM task list
-        * [ ] KaTeX
-        * [ ] mermaid
+	        * [x] image scale
+        * [x] GFM task list
+        * [x] KaTeX
+        * [-] mermaid
     * [ ] index.md config
     * [ ] register & permission page
     * [ ] better theme support
