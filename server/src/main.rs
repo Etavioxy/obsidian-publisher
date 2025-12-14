@@ -9,15 +9,16 @@ mod storage;
 use auth::{auth_middleware, AuthService, TokenService};
 use axum::{
     extract::DefaultBodyLimit,
+    http::StatusCode,
     middleware,
-    routing::{delete, get, post, put},
+    routing::{delete, get, get_service, post, put},
     Router,
 };
 use config::Config;
 use handlers::{auth as auth_handlers, sites as site_handlers, users as user_handlers, admin as admin_handlers};
 use std::sync::Arc;
 use storage::Storage;
-use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, services::ServeDir, trace::TraceLayer};
+use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, services::{ServeDir, ServeFile}, trace::TraceLayer};
 use tracing::info;
 
 #[tokio::main]
@@ -84,11 +85,22 @@ async fn main() -> anyhow::Result<()> {
             auth_middleware,
         );
 
+    // Web UI
+    let static_service = if let Some(root) = config.server.static_root.clone() {
+        get_service(
+            ServeDir::new(root.clone())
+                .fallback(ServeFile::new(root.join("index.html")))
+        )
+    } else {
+        get(|| async { StatusCode::NOT_FOUND })
+    };
+
     let app = Router::new()
         .merge(protected_routes)
         .route_layer(auth_middleware_layer)
         .merge(public_routes)
         .nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path_str("")))
+        .fallback_service(static_service)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .layer(DefaultBodyLimit::disable())

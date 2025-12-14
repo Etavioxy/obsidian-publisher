@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fs;
 use crate::utils::secrets::generate_secret;
 use regex::Regex;
@@ -23,6 +23,7 @@ pub struct ServerConfig {
     pub host: String,
     pub port: u16,
     pub jwt_secret: String,
+    pub static_root: Option<PathBuf>,
 }
 
 impl ServerConfig {
@@ -40,6 +41,13 @@ impl Validate for ServerConfig {
             if !re.is_match(self.url.as_str()) {
                 warnings.push(format!("server.url '{}' does not look like a valid http(s) URL", self.url));
             }
+        }
+
+        // 静态前端可选：未配置则提示不会提供 UI；配置了但路径不存在也给警告
+        match &self.static_root {
+            None => warnings.push("server.static_root is not set; web UI will not be served".to_string()),
+            Some(p) if !Path::new(p).exists() => warnings.push(format!("server.static_root '{}' does not exist", p.display())),
+            _ => {}
         }
 
         warnings
@@ -130,6 +138,7 @@ impl Default for Config {
                 host: "0.0.0.0".to_string(),
                 port: 8080,
                 jwt_secret: generate_secret(),
+                static_root: None,
             },
             storage: StorageConfig {
                 sites: StaticStorageConfig { path: PathBuf::from("./data/sites") },
