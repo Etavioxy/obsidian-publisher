@@ -4,6 +4,7 @@ import Home from '../views/Home.vue'
 import About from '../views/About.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+import Dashboard from '../views/Dashboard.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -15,6 +16,11 @@ const routes: RouteRecordRaw[] = [
     path: '/about',
     name: 'About',
     component: About,
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: Dashboard,
   },
   {
     path: '/login',

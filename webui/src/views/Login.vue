@@ -9,7 +9,7 @@ const router = useRouter()
 const onSubmit = async (payload: { username: string; password: string }) => {
   await auth.login(payload)
   await auth.fetchMe()
-  router.push('/')
+  router.push('/dashboard')
 }
 </script>
 

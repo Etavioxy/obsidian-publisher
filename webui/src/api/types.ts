@@ -22,10 +22,21 @@ export interface LoginResponse {
   user: UserResponse
 }
 
+// Site
+export interface SiteResponse {
+  id: string
+  name: string
+  domain: string | null
+  description: string
+  created_at: string
+  url: string
+  url_by_id: string
+}
+
 // User
 export interface UserProfileResponse {
   user: UserResponse
-  sites: any[] // TODO: replace with typed SiteResponse when site APIs are added
+  sites: SiteResponse[]
   total_sites: number
 }
 
@@ -38,5 +49,5 @@ export interface UserStatsResponse {
   username: string
   total_sites: number
   account_created: string
-  sites: any[] // TODO: replace with typed SiteResponse when site APIs are added
+  sites: SiteResponse[]
 }

@@ -10,7 +10,7 @@ const onSubmit = async (payload: { username: string; password: string }) => {
   await auth.register(payload)
   await auth.login(payload) // auto-login after register for simplicity
   await auth.fetchMe()
-  router.push('/')
+  router.push('/dashboard')
 }
 </script>
 
