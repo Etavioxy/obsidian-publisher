@@ -10,6 +10,7 @@ use auth::{auth_middleware, AuthService, TokenService};
 use axum::{
     extract::DefaultBodyLimit,
     middleware,
+    response::Redirect,
     routing::{delete, get, post, put},
     Router,
 };
@@ -17,7 +18,7 @@ use config::Config;
 use handlers::{auth as auth_handlers, sites as site_handlers, users as user_handlers, admin as admin_handlers};
 use std::sync::Arc;
 use storage::Storage;
-use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, services::ServeDir, trace::TraceLayer};
+use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, services::{ServeDir, ServeFile}, trace::TraceLayer};
 use tracing::info;
 
 #[tokio::main]
@@ -85,10 +86,18 @@ async fn main() -> anyhow::Result<()> {
         );
 
     let app = Router::new()
-        .merge(protected_routes)
-        .route_layer(auth_middleware_layer)
+        // Public API routes (no auth required)
         .merge(public_routes)
+        // Protected API routes (auth required)
+        .merge(protected_routes.route_layer(auth_middleware_layer))
+        // Serve published sites (no auth required)
         .nest_service("/sites", ServeDir::new(storage.sites.get_site_files_path_str("")))
+        // Serve the web UI as root with SPA fallback (no auth required)
+        // This must be last so API routes take precedence
+        .fallback_service(
+            ServeDir::new("webui/dist")
+                .not_found_service(ServeFile::new("webui/dist/index.html")),
+        )
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .layer(DefaultBodyLimit::disable())
@@ -98,14 +107,19 @@ async fn main() -> anyhow::Result<()> {
 
     let listener = tokio::net::TcpListener::bind(config.server.bind_url()).await?;
     info!("🚀 Server running on {}", config.server.bind_url());
-    info!("📚 API endpoints:");
-    info!("  GET    /api/admin/all    - Debugging");
-    info!("  GET    /api/admin/sites  - DB <-> disk mismatch check (requires ?key=JWT_SECRET)");
-    info!("  GET    /api/admin/storage - Storage usage summary (requires ?key=JWT_SECRET)");
+    info!("🌐 Web UI: http://{}/", config.server.bind_url());
+    info!("");
+    info!("📚 Public API endpoints:");
+    info!("  GET    /*                - Admin Web UI (SPA, fallback)");
+    info!("  GET    /sites/*          - Published sites (static files)");
     info!("  GET    /api/sites        - 列出站点");
     info!("  POST   /auth/register    - 用户注册");
     info!("  POST   /auth/login       - 用户登录");
-    info!("  ------------------------------  ");
+    info!("  GET    /api/admin/all    - Debugging");
+    info!("  GET    /api/admin/sites  - DB <-> disk mismatch check (requires ?key=JWT_SECRET)");
+    info!("  GET    /api/admin/storage - Storage usage summary (requires ?key=JWT_SECRET)");
+    info!("");
+    info!("🔒 Protected API endpoints (require authentication):");
     info!("  GET    /auth/me          - 获取当前用户信息");
     info!("  POST   /api/sites        - 上传站点");
     info!("  PUT    /api/sites/:id    - 更新站点信息");
