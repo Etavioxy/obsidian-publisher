@@ -3,6 +3,9 @@ srcref/
 *.bak
 *.md
 
+# Environment variables
+.env*
+
 # Logs
 logs
 *.log
