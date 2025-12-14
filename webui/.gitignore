@@ -1,6 +1,7 @@
 
 srcref/
 *.bak
+*.md
 
 # Logs
 logs
