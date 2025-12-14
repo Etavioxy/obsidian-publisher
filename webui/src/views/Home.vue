@@ -6,6 +6,7 @@
     <h1>Home</h1>
     <nav>
       <router-link to="/about">Go to About</router-link>
+      <router-link to="/login">Go to Login</router-link>
     </nav>
   </div>
 </template>
