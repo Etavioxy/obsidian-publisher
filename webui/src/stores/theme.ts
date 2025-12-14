@@ -44,6 +44,15 @@ export const useThemeStore = defineStore('theme', () => {
     localStorage.setItem('theme', newTheme)
   }
 
+  // 切换主题
+  const toggle = () => {
+    if (theme.value === 'dark') {
+      setTheme('light')
+    } else {
+      setTheme('dark')
+    }
+  }
+
   // 初始化主题
   const initTheme = () => {
     const savedTheme = localStorage.getItem('theme') as ThemeType | null
@@ -68,6 +77,7 @@ export const useThemeStore = defineStore('theme', () => {
     theme,
     isDark,
     setTheme,
+    toggle,
     initTheme,
   }
 })

@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import ThemeToggle from './components/ThemeToggle.vue'
+import GitHubLink from './components/GitHubLink.vue'
 </script>
 
 <template>
   <div class="app">
+    <div class="app-controls">
+      <ThemeToggle />
+      <GitHubLink />
+    </div>
     <router-view />
   </div>
 </template>
@@ -19,5 +25,15 @@ html.dark {
 .app {
   width: 100%;
   min-height: 100vh;
+}
+
+.app-controls {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 1000;
 }
 </style>
