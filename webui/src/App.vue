@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import ThemeToggle from './components/ThemeToggle.vue'
 import GitHubLink from './components/GitHubLink.vue'
+import NavMenu from './components/NavMenu.vue'
 </script>
 
 <template>
   <div class="app">
+    <NavMenu />
     <div class="app-controls">
       <ThemeToggle />
       <GitHubLink />
