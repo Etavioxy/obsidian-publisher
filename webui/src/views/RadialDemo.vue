@@ -23,10 +23,18 @@
           type="range" 
           v-model="radius" 
           min="100" 
+          max="600" 
+          step="10" 
+        />
+        <input 
+          type="range" 
+          v-model="innerRadius" 
+          min="100" 
           max="300" 
           step="10" 
         />
         <span>半径: {{ radius }}px</span>
+        <span>内半径: {{ innerRadius }}px</span>
       </div>
     </div>
 
@@ -62,6 +70,7 @@
             :iconColor="iconColor"
             :iconHoverColor="iconHoverColor"
             :arrowHoverColor="arrowHoverColor"
+            :innerRadius="innerRadius"
             :radius="radius"
             :animationDuration="animationDuration"
             :autoCloseOnClick="autoCloseOnClick"
@@ -113,7 +122,8 @@ const menuColor = ref('#fff')
 const iconColor = ref('#392338')
 const iconHoverColor = ref('#c1264e')
 const arrowHoverColor = ref('#ff947f')
-const radius = ref(200)
+const innerRadius = ref(200)
+const radius = ref(400)
 const animationDuration = ref(300)
 const autoCloseOnClick = ref(true)
 const showArrows = ref(true)

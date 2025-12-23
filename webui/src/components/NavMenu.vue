@@ -71,23 +71,26 @@ const handleItemClick = (item: RadialNavItem) => {
   <div v-if="showNav" class="navmenu-root">
     <RadialMenu 
       :items="items" 
-      :radius="120" 
+      :item-padding="18"
+      :padding="12 + 16 - 2"
+      :inner-radius="80" 
+      :radius="200" 
       :items-per-page="10" 
       position="top-left"
       :open-on-hover="true"
       :auto-close-on-click="true"
       :show-arrows="true"
       background-color="var(--vp-c-bg-elv)"
-      menu-color="var(--vp-c-gray-3)"
-      icon-color="var(--vp-c-text-1)"
-      icon-hover-color="var(--vp-c-indigo-2)"
-      arrow-hover-color="var(--vp-c-green-1)"
+      menu-color="var(--vp-c-bg-soft)"
+      text-color="var(--vp-c-text-2)"
+      hover-color="var(--vp-c-brand-2)"
+      border-color="var(--vp-c-border)"
       @item-click="handleItemClick"
     />
   </div>
 </template>
 
 <style scoped>
-.navmenu-root { position: fixed; top: 6px; left: 6px; z-index: 1100; }
+.navmenu-root { position: fixed; z-index: 1100; }
 </style>
 

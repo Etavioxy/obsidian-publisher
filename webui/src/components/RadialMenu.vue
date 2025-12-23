@@ -17,7 +17,6 @@
       <label 
         for="radial-menu-fixed"
         class="radial-menu__toggle"
-        :style="toggleStyles"
       >
         <div class="radial-menu__icon">
           <div class="radial-menu__hamburger"></div>
@@ -25,10 +24,7 @@
       </label>
       
       <!-- 菜单列表 -->
-      <div 
-        class="radial-menu__listings"
-        :style="listingsStyles"
-      >
+      <div class="radial-menu__listings">
         <ul class="radial-menu__circle">
           <li 
             v-for="(item, index) in props.items" 
@@ -99,9 +95,12 @@ interface Props {
   itemsPerPage?: number
   backgroundColor?: string
   menuColor?: string
-  iconColor?: string
-  iconHoverColor?: string
-  arrowHoverColor?: string
+  textColor?: string
+  hoverColor?: string
+  borderColor?: string
+  itemPadding?: number
+  padding?: number
+  innerRadius?: number
   radius?: number
   animationDuration?: number
   autoCloseOnClick?: boolean
@@ -116,10 +115,13 @@ const props = withDefaults(defineProps<Props>(), {
   itemsPerPage: 10,
   backgroundColor: '#392338',
   menuColor: '#fff',
-  iconColor: '#392338',
-  iconHoverColor: '#c1264e',
-  arrowHoverColor: '#ff947f',
-  radius: 200,
+  textColor: '#392338',
+  hoverColor: '#c1264e',
+  borderColor: '#ccc',
+  itemPadding: 24,
+  padding: 20,
+  innerRadius: 200,
+  radius: 400,
   animationDuration: 300,
   autoCloseOnClick: true,
   showArrows: true,
@@ -155,26 +157,15 @@ const anglePerStep = computed(() =>
 const menuStyles = computed(() => ({
   '--background-color': props.backgroundColor,
   '--menu-color': props.menuColor,
-  '--icon-color': props.iconColor,
-  '--icon-hover-color': props.iconHoverColor,
-  '--arrow-hover-color': props.arrowHoverColor,
+  '--text-color': props.textColor,
+  '--hover-color': props.hoverColor,
+  '--border-color': props.borderColor,
   '--animation-duration': `${props.animationDuration}ms`,
+  '--item-padding': `${props.itemPadding}px`,
+  '--padding': `${props.padding}px`,
+  '--inner-radius': `${props.innerRadius}px`,
   '--radius': `${props.radius}px`,
   '--rotation': `${currentRotation.value}deg`
-}))
-
-const toggleStyles = computed(() => ({
-  width: `${props.radius}px`,
-  height: `${props.radius}px`,
-  top: `-${props.radius / 2}px`,
-  left: `-${props.radius / 2}px`
-}))
-
-const listingsStyles = computed(() => ({
-  width: `${props.radius * 2}px`,
-  height: `${props.radius * 2}px`,
-  top: `-${props.radius}px`,
-  left: `-${props.radius}px`
 }))
 
 // 获取菜单项样式
@@ -254,6 +245,8 @@ defineExpose({
 <style scoped>
 .radial-menu {
   position: fixed;
+  width: calc(var(--radius) * 1 + 32px);
+  height: calc(var(--radius) * 1);
   z-index: 1000;
   pointer-events: none;
   transition: all var(--animation-duration, 300ms) ease;
@@ -264,13 +257,23 @@ defineExpose({
 }
 
 .radial-menu--bottom-right {
-  bottom: 20px;
-  right: 20px;
+  bottom: 0;
+  right: 0;
 }
 
 .radial-menu--top-left {
-  top: 20px;
-  left: 20px;
+  top: 0;
+  left: 0;
+}
+
+.radial-menu--bottom-right .radial-menu__container {
+  bottom: var(--padding);
+  right: var(--padding);
+}
+
+.radial-menu--top-left .radial-menu__container {
+  top: var(--padding);
+  left: var(--padding);
 }
 
 .radial-menu:hover,
@@ -284,8 +287,6 @@ defineExpose({
 
 .radial-menu__container {
   position: relative;
-  width: calc(var(--radius) * 1.5);
-  height: calc(var(--radius) * 1.5);
   pointer-events: none;
 }
 
@@ -294,6 +295,10 @@ defineExpose({
 }
 
 .radial-menu__toggle {
+  width: var(--inner-radius);
+  height: var(--inner-radius);
+  top: calc(-1 * var(--inner-radius) / 2);
+  left: calc(-1 * var(--inner-radius) / 2);
   position: absolute;
   z-index: 11;
   background-color: var(--menu-color);
@@ -315,7 +320,7 @@ defineExpose({
 
 .radial-menu:hover .radial-menu__toggle,
 .radial-menu__fixed-state:checked ~ .radial-menu__container .radial-menu__toggle {
-  background-color: var(--background-color);
+  background-color: var(--text-color);
 }
 
 .radial-menu__icon {
@@ -330,7 +335,7 @@ defineExpose({
 .radial-menu__hamburger {
   width: 20px;
   height: 2px;
-  background-color: var(--background-color);
+  background-color: var(--text-color);
   border-radius: 5px;
   position: relative;
   transition: all var(--animation-duration, 300ms) ease;
@@ -343,7 +348,7 @@ defineExpose({
   left: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--background-color);
+  background-color: var(--text-color);
   border-radius: 5px;
   transition: all var(--animation-duration, 300ms) ease;
 }
@@ -386,6 +391,10 @@ defineExpose({
 }
 
 .radial-menu__listings {
+  width: var(--radius);
+  height: var(--radius);
+  top: calc(-1 * var(--radius) / 2);
+  left: calc(-1 * var(--radius) / 2);
   position: absolute;
   z-index: 10;
   border-radius: 50%;
@@ -431,7 +440,7 @@ defineExpose({
   height: 200%;
   text-align: center;
   transform: skewY(var(--skew-angle)) rotate(var(--item-rotate, 0deg));
-  padding-top: 1.5em;
+  padding-top: var(--item-padding);
 }
 
 .radial-menu__upside {
@@ -445,22 +454,24 @@ defineExpose({
   border: none;
   cursor: pointer;
   text-decoration: none;
-  color: var(--icon-color);
+  color: var(--text-color);
   font-size: 1.5rem;
   transition: all 0.3s ease;
   pointer-events: auto;
 }
 
 .radial-menu__button:hover {
-  color: var(--icon-hover-color);
+  color: var(--hover-color);
 }
 
 .radial-menu__arrow-container {
   position: absolute;
   display: block;
-  left: var(--radius);
+  top: -16px;
+  left: calc(var(--radius) / 2 + 8px); /* gap */
   pointer-events: auto;
   z-index: 15;
+  display: none;
 }
 
 .radial-menu-container.position-top-left .radial-menu__arrow-container {
@@ -475,36 +486,33 @@ defineExpose({
   transform: translateX(50%);
 }
 
+.radial-menu:hover .radial-menu__arrow-container,
+.radial-menu__fixed-state:checked ~ .radial-menu__container .radial-menu__arrow-container {
+  display: block;
+}
+
 .radial-menu__arrow {
   all: unset;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--menu-bg-color);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
   cursor: pointer;
   transition: all 0.3s ease;
   z-index: 16;
 }
 
-.radial-menu__arrow:hover:not(:disabled) {
-  background: var(--arrow-hover-color);
-  border-color: var(--arrow-hover-color);
-  transform: scale(1.15);
-}
-
-.radial-menu__arrow:disabled,
-.radial-menu__arrow--disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.radial-menu__arrow:hover {
+  border-color: var(--hover-color);
 }
 
 .radial-menu__arrow-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   position: relative;
 }
 
@@ -513,11 +521,11 @@ defineExpose({
   position: absolute;
   width: 8px;
   height: 8px;
-  border-top: 2px solid var(--icon-color);
-  border-right: 2px solid var(--icon-color);
+  border-top: 2px solid var(--text-color);
+  border-right: 2px solid var(--text-color);
   transform: rotate(-45deg) translate(-2px, 2px);
-  left: 6px;
-  top: 8px;
+  left: 4.5px;
+  top: 4px;
 }
 
 .radial-menu__arrow--down .radial-menu__arrow-icon::before {
@@ -525,10 +533,10 @@ defineExpose({
   position: absolute;
   width: 8px;
   height: 8px;
-  border-bottom: 2px solid var(--icon-color);
-  border-left: 2px solid var(--icon-color);
+  border-bottom: 2px solid var(--text-color);
+  border-left: 2px solid var(--text-color);
   transform: rotate(-45deg) translate(2px, -2px);
-  left: 6px;
+  left: 4.5px;
   top: 6px;
 }
 </style>

@@ -26,9 +26,6 @@
     --vp-c-indigo-1: #3451b2;
     --vp-c-indigo-2: #3a5ccc;
     --vp-c-indigo-3: #5672cd;
-    --vp-c-green-1: #18794e;
-    --vp-c-green-2: #299764;
-    --vp-c-green-3: #30a46c;
 }
 
 .dark {
@@ -38,9 +35,6 @@
     --vp-c-indigo-1: #a8b1ff;
     --vp-c-indigo-2: #5c73e7;
     --vp-c-indigo-3: #3e63dd;
-    --vp-c-green-1: #3dd68c;
-    --vp-c-green-2: #30a46c;
-    --vp-c-green-3: #298459;
 }
 
 :root {
