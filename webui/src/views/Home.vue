@@ -1,13 +1,12 @@
 <script setup lang="ts">
+import VisitorDashboard from '../components/VisitorDashboard.vue'
 </script>
 
 <template>
   <div class="view-home">
-    <h1>Home</h1>
-    <nav>
-      <router-link to="/about">Go to About</router-link>
-      <router-link to="/login">Go to Login</router-link>
-    </nav>
+    <div class="contents">
+      <VisitorDashboard />
+    </div>
   </div>
 </template>
 
@@ -18,12 +17,16 @@
   margin: 0 auto;
 }
 
-nav {
-  margin-top: 1rem;
+.contents {
+  position: relative;
+  width: min(430px, 100% - 32px);
+  margin-left: 128px;
+  padding: 100px 0;
 }
 
-a {
-  display: inline-block;
-  margin-top: 0.5rem;
+@media (max-width: 1200px) {
+  .contents {
+    margin: auto;
+  }
 }
 </style>
