@@ -10,7 +10,7 @@ TODO:
     * [x] missing attachments error
 * [ ] server
     * [x] architecture
-    * [x] admin panel
+    * [x] admin panel, stat page
     * [ ] visibility
     * [ ] 404 & error detect
     * [x] database
@@ -27,8 +27,8 @@ TODO:
         * [x] GFM task list
         * [x] KaTeX
         * [-] mermaid
-    * [ ] index.md config
-    * [ ] register & permission page
+    * [ ] removing index.md config
+    * [x] register, login
     * [ ] better theme support
 * [x] cicd
     * [x] docker
@@ -36,7 +36,7 @@ TODO:
     
 misc:
 
-* [ ] license
+* [x] license
 * [ ] document
     * [ ] quick start
 * [ ] a new name
